@@ -1,0 +1,100 @@
+{
+  "name": "Elevate CRM — WhatsApp Delivery Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-delivery",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "whatsapp-delivery"
+    },
+    {
+      "parameters": {
+        "jsCode": "const entries = $input.first().json.body?.entry ?? [];\nconst results = [];\nfor (const entry of entries) {\n  for (const change of (entry.changes ?? [])) {\n    for (const status of (change.value?.statuses ?? [])) {\n      results.push({\n        message_id: status.id,\n        status: status.status,\n        timestamp: new Date().toISOString()\n      });\n    }\n  }\n}\nreturn results.map(r => ({ json: r }));"
+      },
+      "name": "Extract Statuses",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "name": "Loop Statuses",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/campaign_logs?whatsapp_message_id=eq.{{ $json.message_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"{{ $json.status === 'delivered' ? 'delivered_at' : $json.status === 'read' ? 'read_at' : $json.status === 'failed' ? 'failed_at' : 'sent_at' }}\": \"{{ $json.timestamp }}\",\n  \"updated_at\": \"{{ $json.timestamp }}\"\n}"
+      },
+      "name": "Update Campaign Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{ $('Loop Statuses').item.json.status }}", "operation": "isIn", "value2": "delivered,read,failed" }]
+        }
+      },
+      "name": "Needs Counter Update?",
+      "type": "n8n-nodes-base.if",
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/increment_campaign_counter",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"p_campaign_id\": \"{{ $json[0].campaign_id }}\",\n  \"p_field\": \"{{ $('Loop Statuses').item.json.status === 'delivered' ? 'delivered_count' : $('Loop Statuses').item.json.status === 'read' ? 'read_count' : 'failed_count' }}\"\n}"
+      },
+      "name": "Increment Campaign Counter",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 240]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={ \"ok\": true }" },
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 380]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger":          { "main": [[{ "node": "Extract Statuses",          "type": "main", "index": 0 }]] },
+    "Extract Statuses":         { "main": [[{ "node": "Loop Statuses",              "type": "main", "index": 0 }]] },
+    "Loop Statuses":            { "main": [[{ "node": "Update Campaign Log",        "type": "main", "index": 0 }], [{ "node": "Respond 200", "type": "main", "index": 0 }]] },
+    "Update Campaign Log":      { "main": [[{ "node": "Needs Counter Update?",      "type": "main", "index": 0 }]] },
+    "Needs Counter Update?":    { "main": [[{ "node": "Increment Campaign Counter", "type": "main", "index": 0 }], [{ "node": "Loop Statuses", "type": "main", "index": 0 }]] },
+    "Increment Campaign Counter": { "main": [[{ "node": "Loop Statuses",            "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check In — Elevate CRM</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #1d4ed8 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      border-radius: 16px;
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .restaurant-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"], input[type="tel"], textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      color: #1e293b;
+      background: #f8fafc;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+
+    input[type="text"]:focus, input[type="tel"]:focus, textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+      background: #ffffff;
+    }
+
+    textarea { resize: none; height: 80px; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .opt-in {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .opt-in input[type="checkbox"] {
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
+      accent-color: #2563eb;
+      flex-shrink: 0;
+    }
+
+    .opt-in span {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    /* Success / Error states */
+    .message-box {
+      display: none;
+      text-align: center;
+      padding: 28px 20px;
+    }
+
+    .message-box .icon { font-size: 52px; margin-bottom: 16px; }
+    .message-box h2 { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .message-box p { font-size: 14px; color: #64748b; line-height: 1.6; }
+
+    .error-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #dc2626;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- Form view -->
+    <div id="form-view">
+      <div class="logo-area">
+        <div class="logo-badge">🍽️</div>
+        <div class="restaurant-name" id="restaurant-display">Check In</div>
+        <div class="subtitle">Sign in to earn rewards & stay connected</div>
+      </div>
+
+      <div class="error-banner" id="error-banner"></div>
+
+      <form id="checkin-form">
+        <div class="form-group">
+          <label for="name">Full Name *</label>
+          <input type="text" id="name" name="name" placeholder="Your name" required autocomplete="name" />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">WhatsApp Number *</label>
+          <input type="tel" id="phone" name="phone" placeholder="+260 97X XXX XXX" required autocomplete="tel" />
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Any requests or notes? <span style="color:#94a3b8;font-weight:400;">(optional)</span></label>
+          <textarea id="notes" name="notes" placeholder="e.g. Birthday celebration, dietary requirements..."></textarea>
+        </div>
+
+        <div class="opt-in">
+          <input type="checkbox" id="optin" checked />
+          <span>I agree to receive WhatsApp messages from this restaurant about offers and updates. You can opt out anytime.</span>
+        </div>
+
+        <button type="submit" class="btn" id="submit-btn">Check In ✓</button>
+      </form>
+
+      <div class="powered-by">Powered by <strong>Elevate CRM</strong> · ElevateAl Solutions Limited</div>
+    </div>
+
+    <!-- Success view -->
+    <div class="message-box" id="success-view">
+      <div class="icon">🎉</div>
+      <h2 id="success-heading">Welcome!</h2>
+      <p id="success-message">Your check-in has been recorded. Enjoy your visit!</p>
+      <div class="powered-by" style="margin-top:24px;">Powered by <strong>Elevate CRM</strong></div>
+    </div>
+
+    <!-- Error view -->
+    <div class="message-box" id="error-view">
+      <div class="icon">😕</div>
+      <h2>Something went wrong</h2>
+      <p id="error-message">We couldn't record your check-in. Please ask a staff member for help.</p>
+    </div>
+
+  </div>
+
+  <script>
+    // Extract api_key from URL: /checkin.html?k=YOUR_API_KEY
+    const params = new URLSearchParams(window.location.search);
+    const apiKey = params.get('k') || params.get('api_key') || '';
+
+    // Next.js API route — works on Vercel or any deployment
+    const WEBHOOK_URL = '/api/checkin';
+
+    document.getElementById('checkin-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const btn = document.getElementById('submit-btn');
+      const errorBanner = document.getElementById('error-banner');
+
+      btn.disabled = true;
+      btn.textContent = 'Checking in…';
+      errorBanner.style.display = 'none';
+
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const notes = document.getElementById('notes').value.trim();
+
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: apiKey, name, phone, notes })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById('success-heading').textContent = `Welcome, ${name}!`;
+          document.getElementById('success-message').textContent =
+            `Your check-in at ${data.restaurant_name || 'the restaurant'} has been recorded. Enjoy your visit!`;
+          document.getElementById('form-view').style.display = 'none';
+          document.getElementById('success-view').style.display = 'block';
+        } else {
+          throw new Error(data.error || 'Check-in failed');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Check In ✓';
+        errorBanner.textContent = err.message || 'Could not connect. Please try again.';
+        errorBanner.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

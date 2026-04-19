@@ -1,0 +1,170 @@
+{
+  "name": "Elevate CRM — QR Check-in Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "checkin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "checkin"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nconst apiKey = body.api_key;\nconst name = (body.name ?? '').trim();\nconst phone = (body.phone ?? '').trim();\nconst notes = (body.notes ?? '').trim();\n\nif (!apiKey || !name || !phone) {\n  return [{ json: { valid: false, error: 'api_key, name, and phone are required' } }];\n}\n\n// Normalise phone to E.164 (+260...)\nlet normalised = phone.replace(/\\s+/g, '').replace(/-/g, '');\nif (normalised.startsWith('0')) normalised = '+260' + normalised.slice(1);\nif (!normalised.startsWith('+')) normalised = '+' + normalised;\n\nreturn [{ json: { valid: true, apiKey, name, phone: normalised, notes } }];"
+      },
+      "name": "Validate & Normalise Input",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.valid }}", "value2": true }]
+        }
+      },
+      "name": "Input Valid?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $json.error }}\" }",
+        "options": { "responseCode": 400 }
+      },
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/restaurants",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "api_key", "value": "=eq.{{ $json.apiKey }}" },
+            { "name": "is_active", "value": "eq.true" },
+            { "name": "select", "value": "id,name" }
+          ]
+        }
+      },
+      "name": "Resolve Restaurant by API Key",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.length }}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "name": "Restaurant Found?",
+      "type": "n8n-nodes-base.if",
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"Invalid API key\" }",
+        "options": { "responseCode": 401 }
+      },
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const restaurant = $input.first().json[0];\nconst prev = $('Validate & Normalise Input').item.json;\nreturn [{\n  json: {\n    restaurantId: restaurant.id,\n    restaurantName: restaurant.name,\n    name: prev.name,\n    phone: prev.phone,\n    notes: prev.notes\n  }\n}];"
+      },
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.code",
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"restaurant_id\": \"{{ $json.restaurantId }}\",\n  \"name\": \"{{ $json.name }}\",\n  \"phone\": \"{{ $json.phone }}\",\n  \"opted_in_whatsapp\": true,\n  \"notes\": \"{{ $json.notes }}\"\n}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "on_conflict", "value": "restaurant_id,phone" }
+          ]
+        }
+      },
+      "name": "Upsert Customer",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/visits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"customer_id\": \"{{ $json[0].id }}\",\n  \"restaurant_id\": \"{{ $('Merge Context').item.json.restaurantId }}\",\n  \"source\": \"qr_checkin\",\n  \"visit_date\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "name": "Insert Visit",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Welcome, {{ $('Merge Context').item.json.name }}! Check-in recorded at {{ $('Merge Context').item.json.restaurantName }}.\",\n  \"restaurant_name\": \"{{ $('Merge Context').item.json.restaurantName }}\"\n}"
+      },
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [2000, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger":                { "main": [[{ "node": "Validate & Normalise Input",   "type": "main", "index": 0 }]] },
+    "Validate & Normalise Input":     { "main": [[{ "node": "Input Valid?",                 "type": "main", "index": 0 }]] },
+    "Input Valid?":                   { "main": [[{ "node": "Resolve Restaurant by API Key","type": "main", "index": 0 }], [{ "node": "Respond 400", "type": "main", "index": 0 }]] },
+    "Resolve Restaurant by API Key":  { "main": [[{ "node": "Restaurant Found?",            "type": "main", "index": 0 }]] },
+    "Restaurant Found?":              { "main": [[{ "node": "Merge Context",                "type": "main", "index": 0 }], [{ "node": "Respond 401", "type": "main", "index": 0 }]] },
+    "Merge Context":                  { "main": [[{ "node": "Upsert Customer",              "type": "main", "index": 0 }]] },
+    "Upsert Customer":                { "main": [[{ "node": "Insert Visit",                 "type": "main", "index": 0 }]] },
+    "Insert Visit":                   { "main": [[{ "node": "Respond 200",                  "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,235 @@
+{
+  "name": "Elevate CRM — Daily Customer Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
+        },
+        "timezone": "Africa/Lusaka"
+      },
+      "name": "Daily 8am Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/restaurants",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "is_active", "value": "eq.true" },
+            { "name": "select", "value": "id,name,email,notification_preferences" }
+          ]
+        }
+      },
+      "name": "Get Active Restaurants",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.length }}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "name": "Any Restaurants?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "name": "Loop Restaurants",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.notification_preferences?.notify_via_email !== false }}", "value2": true }]
+        }
+      },
+      "name": "Email Enabled?",
+      "type": "n8n-nodes-base.if",
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/get_segment_count",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"p_restaurant_id\": \"{{ $('Loop Restaurants').item.json.id }}\",\n  \"p_segment\": \"inactive_30d\"\n}"
+      },
+      "name": "Count Inactive Customers",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 160]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "restaurant_id", "value": "=eq.{{ $('Loop Restaurants').item.json.id }}" },
+            { "name": "select", "value": "count" },
+            { "name": "birthday", "value": "=eq.{{ new Date().toISOString().slice(5,10) }}" }
+          ]
+        }
+      },
+      "name": "Count Birthdays Today",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "restaurant_id", "value": "=eq.{{ $('Loop Restaurants').item.json.id }}" },
+            { "name": "select", "value": "count" },
+            { "name": "created_at", "value": "=gte.{{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}" }
+          ]
+        }
+      },
+      "name": "Count New This Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 440]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/visits",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "restaurant_id", "value": "=eq.{{ $('Loop Restaurants').item.json.id }}" },
+            { "name": "select", "value": "count" },
+            { "name": "visit_date", "value": "=gte.{{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}" }
+          ]
+        }
+      },
+      "name": "Count Visits This Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 580]
+    },
+    {
+      "parameters": {
+        "jsCode": "const restaurantId = $('Loop Restaurants').item.json.id;\nconst restaurantName = $('Loop Restaurants').item.json.name;\nconst restaurantEmail = $('Loop Restaurants').item.json.email;\n\nconst inactiveCount = $('Count Inactive Customers').item.json ?? 0;\nconst birthdayCount = parseInt($('Count Birthdays Today').item.json?.[0]?.count ?? '0');\nconst newThisWeek = parseInt($('Count New This Week').item.json?.[0]?.count ?? '0');\nconst visitsThisWeek = parseInt($('Count Visits This Week').item.json?.[0]?.count ?? '0');\n\nreturn [{\n  json: {\n    restaurantId,\n    restaurantName,\n    restaurantEmail,\n    inactiveCount,\n    birthdayCount,\n    newThisWeek,\n    visitsThisWeek,\n    hasNotableMetrics: inactiveCount > 5 || birthdayCount > 0 || newThisWeek > 0\n  }\n}];"
+      },
+      "name": "Compile Digest Stats",
+      "type": "n8n-nodes-base.code",
+      "position": [1580, 370]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.hasNotableMetrics }}", "value2": true }]
+        }
+      },
+      "name": "Notable Metrics?",
+      "type": "n8n-nodes-base.if",
+      "position": [1800, 370]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"restaurant_id\": \"{{ $json.restaurantId }}\",\n  \"type\": \"daily_digest\",\n  \"title\": \"Daily CRM Digest\",\n  \"body\": \"{{ $json.newThisWeek }} new customers this week · {{ $json.visitsThisWeek }} visits · {{ $json.inactiveCount }} customers inactive 30d{{ $json.birthdayCount > 0 ? ' · ' + $json.birthdayCount + ' birthdays today 🎂' : '' }}\",\n  \"is_read\": false\n}"
+      },
+      "name": "Insert In-App Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2020, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@elevatealsolutions.com",
+        "toEmail": "={{ $json.restaurantEmail }}",
+        "subject": "=Your Daily CRM Digest — {{ $json.restaurantName }}",
+        "emailType": "html",
+        "message": "=DAILY_DIGEST_TEMPLATE_PLACEHOLDER"
+      },
+      "name": "Send Digest Email",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [2020, 440],
+      "notes": "Configure SMTP credentials in n8n. Replace DAILY_DIGEST_TEMPLATE_PLACEHOLDER with the HTML from email-templates/daily-digest.html. Available variables: $json.restaurantName, $json.inactiveCount, $json.birthdayCount, $json.newThisWeek, $json.visitsThisWeek"
+    }
+  ],
+  "connections": {
+    "Daily 8am Trigger":        { "main": [[{ "node": "Get Active Restaurants",    "type": "main", "index": 0 }]] },
+    "Get Active Restaurants":   { "main": [[{ "node": "Any Restaurants?",          "type": "main", "index": 0 }]] },
+    "Any Restaurants?":         { "main": [[{ "node": "Loop Restaurants",          "type": "main", "index": 0 }], []] },
+    "Loop Restaurants":         { "main": [[{ "node": "Email Enabled?",            "type": "main", "index": 0 }], []] },
+    "Email Enabled?":           { "main": [[{ "node": "Count Inactive Customers",  "type": "main", "index": 0 }], [{ "node": "Loop Restaurants", "type": "main", "index": 0 }]] },
+    "Count Inactive Customers": { "main": [[{ "node": "Count Birthdays Today",     "type": "main", "index": 0 }]] },
+    "Count Birthdays Today":    { "main": [[{ "node": "Count New This Week",        "type": "main", "index": 0 }]] },
+    "Count New This Week":      { "main": [[{ "node": "Count Visits This Week",    "type": "main", "index": 0 }]] },
+    "Count Visits This Week":   { "main": [[{ "node": "Compile Digest Stats",      "type": "main", "index": 0 }]] },
+    "Compile Digest Stats":     { "main": [[{ "node": "Notable Metrics?",          "type": "main", "index": 0 }]] },
+    "Notable Metrics?":         { "main": [[{ "node": "Insert In-App Notification","type": "main", "index": 0 }], [{ "node": "Loop Restaurants", "type": "main", "index": 0 }]] },
+    "Insert In-App Notification": { "main": [[{ "node": "Send Digest Email",       "type": "main", "index": 0 }]] },
+    "Send Digest Email":        { "main": [[{ "node": "Loop Restaurants",          "type": "main", "index": 0 }]] }
+  }
+}

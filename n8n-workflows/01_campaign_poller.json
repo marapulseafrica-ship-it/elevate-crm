@@ -1,0 +1,248 @@
+{
+  "name": "Elevate CRM — Campaign Poller",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "seconds", "secondsInterval": 10 }] }
+      },
+      "name": "Every 10 Seconds",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/campaigns",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "eq.scheduled" },
+            { "name": "scheduled_at", "value": "=lte.{{ new Date().toISOString() }}" },
+            { "name": "or", "value": "(ends_at.is.null,ends_at.gte.{{ new Date().toISOString() }})" },
+            { "name": "select", "value": "*" }
+          ]
+        }
+      },
+      "name": "Fetch Due Campaigns",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.length }}", "operation": "larger", "value2": 0 }]
+        }
+      },
+      "name": "Any Campaigns?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "name": "Loop Campaigns",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/campaigns?id=eq.{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "status", "value": "sending" },
+            { "name": "started_at", "value": "={{ new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "name": "Lock Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/restaurants?id=eq.{{ $('Loop Campaigns').item.json.restaurant_id }}&select=id,name,email,whatsapp_phone_number_id,whatsapp_access_token,whatsapp_template_name,whatsapp_number",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        }
+      },
+      "name": "Get Restaurant Credentials",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/get_segment_customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "p_restaurant_id", "value": "={{ $('Loop Campaigns').item.json.restaurant_id }}" },
+            { "name": "p_segment", "value": "={{ $('Loop Campaigns').item.json.audience_segment }}" }
+          ]
+        }
+      },
+      "name": "Get Segment Customers",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 240]
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
+      "name": "Loop Customers",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [1780, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v18.0/{{ $('Get Restaurant Credentials').item.json[0].whatsapp_phone_number_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Get Restaurant Credentials').item.json[0].whatsapp_access_token }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.phone }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"{{ $('Get Restaurant Credentials').item.json[0].whatsapp_template_name }}\",\n    \"language\": { \"code\": \"en\" },\n    \"components\": [{\n      \"type\": \"body\",\n      \"parameters\": [\n        { \"type\": \"text\", \"text\": \"{{ $json.name }}\" },\n        { \"type\": \"text\", \"text\": \"{{ $('Get Restaurant Credentials').item.json[0].name }}\" }\n      ]\n    }]\n  }\n}"
+      },
+      "name": "Send WhatsApp Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2000, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/campaign_logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"campaign_id\": \"{{ $('Loop Campaigns').item.json.id }}\",\n  \"customer_id\": \"{{ $('Loop Customers').item.json.id }}\",\n  \"restaurant_id\": \"{{ $('Loop Campaigns').item.json.restaurant_id }}\",\n  \"phone_sent_to\": \"{{ $('Loop Customers').item.json.phone }}\",\n  \"message_body\": \"{{ $('Loop Campaigns').item.json.message_body.replace('{{customer_name}}', $('Loop Customers').item.json.name).replace('{{restaurant_name}}', $('Get Restaurant Credentials').item.json[0].name) }}\",\n  \"status\": \"sent\",\n  \"whatsapp_message_id\": \"{{ $json.messages[0].id }}\",\n  \"sent_at\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "name": "Insert Campaign Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2220, 240]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/campaigns?id=eq.{{ $('Loop Campaigns').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"status\": \"completed\",\n  \"sent_count\": {{ $('Get Segment Customers').item.json.length }},\n  \"completed_at\": \"{{ new Date().toISOString() }}\",\n  \"updated_at\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "name": "Complete Campaign",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2440, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"restaurant_id\": \"{{ $('Loop Campaigns').item.json.restaurant_id }}\",\n  \"type\": \"campaign_completed\",\n  \"title\": \"Campaign Sent ✓\",\n  \"body\": \"{{ $('Loop Campaigns').item.json.name }} was sent to {{ $('Get Segment Customers').item.json.length }} customers.\",\n  \"is_read\": false\n}"
+      },
+      "name": "Create Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2660, 240]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@elevatealsolutions.com",
+        "toEmail": "={{ $('Get Restaurant Credentials').item.json[0].email }}",
+        "subject": "=Your campaign '{{ $('Loop Campaigns').item.json.name }}' has been sent — ElevateAl CRM",
+        "emailType": "html",
+        "message": "=CAMPAIGN_SENT_TEMPLATE_PLACEHOLDER"
+      },
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [2880, 240],
+      "notes": "Configure SMTP credentials in n8n. Replace CAMPAIGN_SENT_TEMPLATE_PLACEHOLDER with the HTML from email-templates/campaign-sent.html"
+    }
+  ],
+  "connections": {
+    "Every 10 Seconds":            { "main": [[{ "node": "Fetch Due Campaigns",         "type": "main", "index": 0 }]] },
+    "Fetch Due Campaigns":         { "main": [[{ "node": "Any Campaigns?",              "type": "main", "index": 0 }]] },
+    "Any Campaigns?":              { "main": [[{ "node": "Loop Campaigns",              "type": "main", "index": 0 }], []] },
+    "Loop Campaigns":              { "main": [[{ "node": "Lock Campaign",               "type": "main", "index": 0 }], []] },
+    "Lock Campaign":               { "main": [[{ "node": "Get Restaurant Credentials",  "type": "main", "index": 0 }]] },
+    "Get Restaurant Credentials":  { "main": [[{ "node": "Get Segment Customers",       "type": "main", "index": 0 }]] },
+    "Get Segment Customers":       { "main": [[{ "node": "Loop Customers",              "type": "main", "index": 0 }]] },
+    "Loop Customers":              { "main": [[{ "node": "Send WhatsApp Message",       "type": "main", "index": 0 }], [{ "node": "Complete Campaign", "type": "main", "index": 0 }]] },
+    "Send WhatsApp Message":       { "main": [[{ "node": "Insert Campaign Log",         "type": "main", "index": 0 }]] },
+    "Insert Campaign Log":         { "main": [[{ "node": "Loop Customers",              "type": "main", "index": 0 }]] },
+    "Complete Campaign":           { "main": [[{ "node": "Create Notification",         "type": "main", "index": 0 }]] },
+    "Create Notification":         { "main": [[{ "node": "Send Email Notification",     "type": "main", "index": 0 }]] },
+    "Send Email Notification":     { "main": [[{ "node": "Loop Campaigns",              "type": "main", "index": 0 }]] }
+  }
+}
