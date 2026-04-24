@@ -141,11 +141,8 @@ export const sendCampaign = inngest.createFunction(
               .replace(/\{\{customer_name\}\}/g, customer.name)
               .replace(/\{\{restaurant_name\}\}/g, restaurant.name);
 
-            // Strip {{customer_name}} and {{restaurant_name}} placeholders to get the custom message text
-            const customMessage = campaign.message_body
-              .replace(/\{\{customer_name\}\}/g, "")
-              .replace(/\{\{restaurant_name\}\}/g, "")
-              .trim();
+            // Use message_body directly as the custom {{3}} variable
+            const customMessage = campaign.message_body.trim();
 
             let whatsappMessageId = "";
             let status: "sent" | "failed" = "sent";
