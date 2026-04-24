@@ -14,7 +14,7 @@ interface Props {
 export default async function CheckinPage({ params }: Props) {
   const { data: restaurant } = await supabaseAdmin
     .from("restaurants")
-    .select("name, logo_url, api_key, is_active")
+    .select("name, logo_url, api_key, is_active, checkin_location_enabled")
     .eq("slug", params.slug)
     .single();
 
@@ -26,6 +26,8 @@ export default async function CheckinPage({ params }: Props) {
         restaurantName={restaurant.name}
         logoUrl={restaurant.logo_url}
         apiKey={restaurant.api_key}
+        slug={params.slug}
+        locationEnabled={restaurant.checkin_location_enabled ?? false}
       />
     </main>
   );

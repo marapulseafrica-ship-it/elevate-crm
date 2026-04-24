@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,32 +11,88 @@ interface Props {
   restaurantName: string;
   logoUrl: string | null;
   apiKey: string;
+  slug: string;
+  locationEnabled: boolean;
 }
 
-export function CheckinForm({ restaurantName, logoUrl, apiKey }: Props) {
+interface CheckinResult {
+  is_new: boolean;
+  visit_number: number;
+}
+
+const storageKey = (slug: string) => `elevate_checkin_${slug}`;
+
+export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEnabled }: Props) {
   const [name, setName]   = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
-  const [success, setSuccess] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+  const [result, setResult]     = useState<CheckinResult | null>(null);
+  const [submittedName, setSubmittedName] = useState("");
+
+  // Pre-fill from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey(slug));
+      if (saved) {
+        const { name: n, phone: p, email: e } = JSON.parse(saved);
+        if (n) setName(n);
+        if (p) setPhone(p);
+        if (e) setEmail(e);
+      }
+    } catch {}
+  }, [slug]);
+
+  const getLocation = (): Promise<{ lat: number; lng: number } | null> =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 8000 }
+      );
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
+    let coords: { lat: number; lng: number } | null = null;
+
+    if (locationEnabled) {
+      coords = await getLocation();
+      if (!coords) {
+        setError("Location access is required to check in. Please allow location and try again.");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: apiKey, name, phone, email: email || undefined }),
+        body: JSON.stringify({
+          api_key: apiKey,
+          name,
+          phone,
+          email: email || undefined,
+          lat: coords?.lat,
+          lng: coords?.lng,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setError(data.error ?? "Something went wrong. Please try again.");
       } else {
-        setSuccess(true);
+        // Save to localStorage for next visit
+        try {
+          localStorage.setItem(storageKey(slug), JSON.stringify({ name, phone, email }));
+        } catch {}
+        setSubmittedName(name);
+        setResult({ is_new: data.is_new, visit_number: data.visit_number });
       }
     } catch {
       setError("Network error. Please try again.");
@@ -45,18 +101,31 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey }: Props) {
     }
   };
 
-  if (success) {
+  if (result) {
     return (
       <Card className="w-full max-w-sm shadow-lg border-0">
         <CardContent className="p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">You're checked in!</h2>
-          <p className="text-slate-500 text-sm">
-            Thanks, <span className="font-semibold text-slate-700">{name}</span>. Your visit at{" "}
-            <span className="font-semibold text-slate-700">{restaurantName}</span> has been recorded.
-          </p>
+          {result.is_new ? (
+            <>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Welcome! 🎉</h2>
+              <p className="text-slate-500 text-sm">
+                Hi <span className="font-semibold text-slate-700">{submittedName}</span>, you're now registered at{" "}
+                <span className="font-semibold text-slate-700">{restaurantName}</span>. See you next time!
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Welcome back! 👋</h2>
+              <p className="text-slate-500 text-sm">
+                Great to see you again, <span className="font-semibold text-slate-700">{submittedName}</span>!{" "}
+                Visit <span className="font-semibold text-primary">#{result.visit_number}</span> recorded at{" "}
+                <span className="font-semibold text-slate-700">{restaurantName}</span>.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
     );

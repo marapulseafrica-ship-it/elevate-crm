@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { WhatsAppCredentialsForm } from "@/components/settings/whatsapp-credentials-form";
 import { CheckinQrCard } from "@/components/settings/checkin-qr-card";
+import { CheckinLocationCard } from "@/components/settings/checkin-location-card";
 import { ProfilePictureUpload } from "@/components/settings/profile-picture-upload";
 import { NotificationSettingsForm } from "@/components/settings/notification-settings-form";
 import { SecuritySettingsForm } from "@/components/settings/security-settings-form";
@@ -48,6 +49,14 @@ export default async function SettingsPage() {
 
         {/* Check-in QR Code */}
         <CheckinQrCard slug={restaurant.slug} restaurantName={restaurant.name} />
+
+        {/* Check-in Location Lock */}
+        <CheckinLocationCard
+          restaurantId={restaurant.id}
+          initialEnabled={restaurant.checkin_location_enabled ?? false}
+          initialLat={restaurant.latitude ?? null}
+          initialLng={restaurant.longitude ?? null}
+        />
 
         {/* WhatsApp Business API Credentials */}
         <WhatsAppCredentialsForm restaurant={restaurant} />

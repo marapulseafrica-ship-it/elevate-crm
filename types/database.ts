@@ -37,6 +37,9 @@ export interface Restaurant {
   whatsapp_app_id: string | null;
   whatsapp_template_name: string | null;
   notification_preferences: Record<string, boolean> | null;
+  latitude: number | null;
+  longitude: number | null;
+  checkin_location_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
