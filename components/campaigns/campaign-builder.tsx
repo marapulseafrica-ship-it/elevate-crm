@@ -148,6 +148,23 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
         ? `Campaign queued — sending to ${audienceCount} customers now.`
         : `Campaign scheduled for ${new Date(sendTime).toLocaleString()}.`
     );
+
+    if (scheduleMode === "now") {
+      const campaignId = inserted[0].id;
+      const supabaseClient = createClient();
+      const poll = setInterval(async () => {
+        const { data } = await supabaseClient
+          .from("campaigns")
+          .select("status")
+          .eq("id", campaignId)
+          .single();
+        if (data?.status === "completed" || data?.status === "failed") {
+          clearInterval(poll);
+          router.refresh();
+        }
+      }, 4000);
+      setTimeout(() => clearInterval(poll), 120_000);
+    }
   };
 
   return (
