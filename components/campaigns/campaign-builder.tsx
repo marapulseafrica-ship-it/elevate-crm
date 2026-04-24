@@ -356,7 +356,6 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
             <Send className="w-4 h-4 mr-2" />
             {saving ? "Saving..." : "Send Now"}
           </Button>
-          <p className="text-xs text-center text-slate-400">n8n will pick this up within 10 seconds</p>
 
           <div className="border-t pt-3">
             <Button
