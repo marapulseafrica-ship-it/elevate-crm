@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, QrCode } from "lucide-react";
-import Image from "next/image";
 
 interface Props {
   restaurantName: string;
@@ -70,7 +69,7 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey }: Props) {
         <div className="text-center mb-8">
           {logoUrl ? (
             <div className="w-20 h-20 mx-auto mb-3 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center">
-              <Image src={logoUrl} alt={restaurantName} width={80} height={80} className="object-cover w-full h-full" />
+              <img src={logoUrl} alt={restaurantName} className="object-cover w-full h-full" />
             </div>
           ) : (
             <div className="w-20 h-20 mx-auto mb-3 rounded-2xl bg-primary/10 flex items-center justify-center">
