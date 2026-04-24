@@ -90,10 +90,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (recentVisit) {
-      const nextCheckin = new Date(new Date(recentVisit.visit_date).getTime() + 2 * 60 * 60 * 1000);
-      const timeStr = nextCheckin.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const nextCheckinAt = new Date(new Date(recentVisit.visit_date).getTime() + 2 * 60 * 60 * 1000).toISOString();
       return NextResponse.json(
-        { success: false, error: `You've already checked in recently. Next check-in available after ${timeStr}.` },
+        { success: false, error: "too_soon", nextCheckinAt },
         { status: 429 }
       );
     }

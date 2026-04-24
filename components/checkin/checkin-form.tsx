@@ -85,7 +85,12 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEna
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error ?? "Something went wrong. Please try again.");
+        if (data.error === "too_soon" && data.nextCheckinAt) {
+          const time = new Date(data.nextCheckinAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          setError(`You've already checked in recently. Next check-in available after ${time}.`);
+        } else {
+          setError(data.error ?? "Something went wrong. Please try again.");
+        }
       } else {
         // Save to localStorage for next visit
         try {
