@@ -1,4 +1,5 @@
 import { Header } from "@/components/dashboard/header";
+import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { VisitsChart } from "@/components/dashboard/visits-chart";
 import { Card } from "@/components/ui/card";
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
         logoUrl={restaurant.logo_url}
       />
 
+      <AutoRefresh intervalMs={60_000} />
       <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Top stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
