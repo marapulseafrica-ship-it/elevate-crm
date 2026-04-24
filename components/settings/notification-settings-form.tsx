@@ -15,6 +15,9 @@ interface NotificationPreferences {
   birthday_reminders: boolean;
   notify_via_email: boolean;
   notify_via_whatsapp: boolean;
+  email_on_checkin: boolean;
+  email_on_visit_milestone: boolean;
+  email_on_customer_milestone: boolean;
 }
 
 const defaultPrefs: NotificationPreferences = {
@@ -25,6 +28,9 @@ const defaultPrefs: NotificationPreferences = {
   birthday_reminders: true,
   notify_via_email: true,
   notify_via_whatsapp: false,
+  email_on_checkin: false,
+  email_on_visit_milestone: true,
+  email_on_customer_milestone: true,
 };
 
 interface Props {
@@ -138,9 +144,21 @@ export function NotificationSettingsForm({ restaurant }: Props) {
             />
             <Row
               label="New customer milestones"
-              description="Alerts when you hit 10, 50, 100, 500 customers, etc."
-              checked={prefs.new_customer_milestone}
-              onChange={set("new_customer_milestone")}
+              description="Email alert at every 20, 40, 60, 80… new customers"
+              checked={prefs.email_on_customer_milestone}
+              onChange={set("email_on_customer_milestone")}
+            />
+            <Row
+              label="Daily visit milestone"
+              description="Email alert when 20 or more loyal customers return in a single day"
+              checked={prefs.email_on_visit_milestone}
+              onChange={set("email_on_visit_milestone")}
+            />
+            <Row
+              label="Check-in alerts"
+              description="Email me every time a customer checks in via QR code"
+              checked={prefs.email_on_checkin}
+              onChange={set("email_on_checkin")}
             />
             <Row
               label="Birthday reminders"

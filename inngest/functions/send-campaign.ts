@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { inngest } from "../client";
+import { sendEmail } from "@/lib/email";
+import { campaignCompletedEmail } from "@/lib/email-templates";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,7 +100,7 @@ export const sendCampaign = inngest.createFunction(
     const restaurant = await step.run("get-restaurant", async () => {
       const { data } = await supabaseAdmin
         .from("restaurants")
-        .select("id,name,email,whatsapp_phone_number_id,whatsapp_access_token,whatsapp_template_name")
+        .select("id,name,email,whatsapp_phone_number_id,whatsapp_access_token,whatsapp_template_name,notification_preferences")
         .eq("id", campaign.restaurant_id)
         .single();
       if (!data) throw new Error("Restaurant not found");
@@ -185,7 +187,7 @@ export const sendCampaign = inngest.createFunction(
       }).eq("id", campaignId);
     });
 
-    // 6. Insert in-app notification
+    // 6. Insert in-app notification + email
     await step.run("create-notification", async () => {
       await supabaseAdmin.from("notifications").insert({
         restaurant_id: campaign.restaurant_id,
@@ -194,6 +196,31 @@ export const sendCampaign = inngest.createFunction(
         body: `${campaign.name} was sent to ${customers.length} customers.`,
         is_read: false,
       });
+
+      const prefs = (restaurant.notification_preferences ?? {}) as Record<string, boolean>;
+      if (prefs.notify_via_email !== false && prefs.campaign_completed !== false) {
+        const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
+        const { count: deliveredCount } = await supabaseAdmin
+          .from("campaign_logs")
+          .select("*", { count: "exact", head: true })
+          .eq("campaign_id", campaign.id)
+          .eq("status", "delivered");
+
+        await sendEmail(
+          restaurant.email,
+          `✓ Campaign sent — "${campaign.name}" reached ${customers.length} customers`,
+          campaignCompletedEmail({
+            restaurantName: restaurant.name,
+            campaignName: campaign.name,
+            audienceSegment: campaign.audience_segment,
+            sentCount: customers.length,
+            deliveredCount: deliveredCount ?? 0,
+            completedAt: new Date().toLocaleString("en-GB", { timeZone: "Africa/Lusaka" }),
+            dashboardUrl: `${BASE_URL}/campaigns`,
+            settingsUrl: `${BASE_URL}/settings`,
+          })
+        );
+      }
     });
 
     return { sent: totalSent, campaignId };

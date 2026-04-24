@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendEmail } from "@/lib/email";
+import { checkinEmail, customerMilestoneEmail, visitMilestoneEmail } from "@/lib/email-templates";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
 
 function normalisePhone(raw: string): string {
   let phone = raw.replace(/\s+/g, "").replace(/-/g, "");
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
   // Resolve restaurant by api_key
   const { data: restaurant } = await supabaseAdmin
     .from("restaurants")
-    .select("id, name, latitude, longitude, checkin_location_enabled")
+    .select("id, name, email, slug, latitude, longitude, checkin_location_enabled, notification_preferences")
     .eq("api_key", api_key)
     .eq("is_active", true)
     .single();
@@ -50,6 +54,10 @@ export async function POST(req: NextRequest) {
   if (!restaurant) {
     return NextResponse.json({ success: false, error: "Invalid API key" }, { status: 401 });
   }
+
+  const prefs = (restaurant.notification_preferences ?? {}) as Record<string, boolean>;
+  const dashboardUrl = `${BASE_URL}/dashboard`;
+  const settingsUrl = `${BASE_URL}/settings`;
 
   // Geolocation check
   if (restaurant.checkin_location_enabled && restaurant.latitude && restaurant.longitude) {
@@ -132,16 +140,16 @@ export async function POST(req: NextRequest) {
     visit_date: new Date().toISOString(),
   });
 
-  // Fetch updated visit count after trigger runs
-  const { data: updated } = await supabaseAdmin
-    .from("customers")
-    .select("total_visits")
-    .eq("id", customerId)
-    .single();
+  // Fetch updated counts after trigger
+  const [{ data: updatedCustomer }, { data: totalCustomersData }] = await Promise.all([
+    supabaseAdmin.from("customers").select("total_visits").eq("id", customerId).single(),
+    supabaseAdmin.from("customers").select("id", { count: "exact", head: true }).eq("restaurant_id", restaurant.id),
+  ]);
 
-  const visitNumber = updated?.total_visits ?? customers[0].total_visits + 1;
+  const visitNumber = updatedCustomer?.total_visits ?? customers[0].total_visits + 1;
+  const totalCustomers = (totalCustomersData as any)?.count ?? 0;
 
-  // In-app notification for restaurant
+  // In-app notification
   await supabaseAdmin.from("notifications").insert({
     restaurant_id: restaurant.id,
     type: "customer_checkin",
@@ -149,6 +157,93 @@ export async function POST(req: NextRequest) {
     body: `${name.trim()} – Visit #${visitNumber}`,
     is_read: false,
   });
+
+  const timeStr = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lusaka" });
+
+  // Email: check-in notification
+  if (prefs.notify_via_email !== false && prefs.email_on_checkin === true) {
+    await sendEmail(
+      restaurant.email,
+      `${restaurant.name} — New check-in from ${name.trim()}`,
+      checkinEmail({ restaurantName: restaurant.name, customerName: name.trim(), visitNumber, isNew, time: timeStr, dashboardUrl, settingsUrl })
+    );
+  }
+
+  // Email: new customer milestone (every 20)
+  if (isNew && prefs.notify_via_email !== false && prefs.email_on_customer_milestone !== false) {
+    if (totalCustomers >= 20 && totalCustomers % 20 === 0) {
+      const { count: newThisMonth } = await supabaseAdmin
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("restaurant_id", restaurant.id)
+        .gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+
+      const { count: loyalCount } = await supabaseAdmin
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("restaurant_id", restaurant.id)
+        .gte("total_visits", 5);
+
+      await sendEmail(
+        restaurant.email,
+        `🎉 ${restaurant.name} just hit ${totalCustomers} customers — milestone reached!`,
+        customerMilestoneEmail({
+          restaurantName: restaurant.name,
+          totalCustomers,
+          newThisMonth: newThisMonth ?? 0,
+          loyalCustomers: loyalCount ?? 0,
+          nextMilestone: totalCustomers + 20,
+          dashboardUrl,
+          settingsUrl,
+        })
+      );
+    }
+  }
+
+  // Email: visit milestone (every 20 return visits today)
+  if (!isNew && prefs.notify_via_email !== false && prefs.email_on_visit_milestone !== false) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const { count: returnVisitsToday } = await supabaseAdmin
+      .from("visits")
+      .select("v.id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurant.id)
+      .gte("visit_date", todayStart.toISOString())
+      .gt("customers.total_visits", 1);
+
+    // Simpler: count all visits today for customers with total_visits > 1
+    const { data: todayVisits } = await supabaseAdmin
+      .from("visits")
+      .select("customer_id")
+      .eq("restaurant_id", restaurant.id)
+      .gte("visit_date", todayStart.toISOString());
+
+    const uniqueCustomerIds = [...new Set((todayVisits ?? []).map((v: any) => v.customer_id))];
+    // Count how many of today's visitors are returning (total_visits > 1 after this visit)
+    const returnCount = uniqueCustomerIds.length;
+
+    if (returnCount > 0 && returnCount % 20 === 0) {
+      const { count: newTodayCount } = await supabaseAdmin
+        .from("customers")
+        .select("*", { count: "exact", head: true })
+        .eq("restaurant_id", restaurant.id)
+        .gte("created_at", todayStart.toISOString());
+
+      await sendEmail(
+        restaurant.email,
+        `🔥 ${restaurant.name} — ${returnCount} loyal customers came back today`,
+        visitMilestoneEmail({
+          restaurantName: restaurant.name,
+          returnVisits: returnCount,
+          newCheckins: newTodayCount ?? 0,
+          totalVisits: (todayVisits ?? []).length,
+          dashboardUrl,
+          settingsUrl,
+        })
+      );
+    }
+  }
 
   return NextResponse.json({
     success: true,
