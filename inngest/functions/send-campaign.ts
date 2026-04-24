@@ -23,7 +23,8 @@ interface Restaurant {
 
 async function sendWhatsAppMessage(
   customer: Customer,
-  restaurant: Restaurant
+  restaurant: Restaurant,
+  campaignMessage: string
 ): Promise<string> {
   const res = await fetch(
     `https://graph.facebook.com/v18.0/${restaurant.whatsapp_phone_number_id}/messages`,
@@ -46,6 +47,7 @@ async function sendWhatsAppMessage(
               parameters: [
                 { type: "text", text: customer.name },
                 { type: "text", text: restaurant.name },
+                { type: "text", text: campaignMessage },
               ],
             },
           ],
@@ -139,12 +141,18 @@ export const sendCampaign = inngest.createFunction(
               .replace(/\{\{customer_name\}\}/g, customer.name)
               .replace(/\{\{restaurant_name\}\}/g, restaurant.name);
 
+            // Strip {{customer_name}} and {{restaurant_name}} placeholders to get the custom message text
+            const customMessage = campaign.message_body
+              .replace(/\{\{customer_name\}\}/g, "")
+              .replace(/\{\{restaurant_name\}\}/g, "")
+              .trim();
+
             let whatsappMessageId = "";
             let status: "sent" | "failed" = "sent";
             let errorMessage: string | null = null;
 
             try {
-              whatsappMessageId = await sendWhatsAppMessage(customer, restaurant);
+              whatsappMessageId = await sendWhatsAppMessage(customer, restaurant, customMessage);
             } catch (err: any) {
               status = "failed";
               errorMessage = err.message ?? "Unknown error";
