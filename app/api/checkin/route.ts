@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { api_key, name, phone, notes } = body ?? {};
+  const { api_key, name, phone, email, notes } = body ?? {};
 
   if (!api_key || !name?.trim() || !phone?.trim()) {
     return NextResponse.json(
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         restaurant_id: restaurant.id,
         name: name.trim(),
         phone: normalisedPhone,
+        email: email?.trim() || null,
         opted_in_whatsapp: true,
         notes: notes?.trim() || null,
       },

@@ -7,6 +7,7 @@ import { HelpCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { WhatsAppCredentialsForm } from "@/components/settings/whatsapp-credentials-form";
+import { CheckinQrCard } from "@/components/settings/checkin-qr-card";
 import { ProfilePictureUpload } from "@/components/settings/profile-picture-upload";
 import { NotificationSettingsForm } from "@/components/settings/notification-settings-form";
 import { SecuritySettingsForm } from "@/components/settings/security-settings-form";
@@ -44,6 +45,9 @@ export default async function SettingsPage() {
             </div>
           </div>
         </Card>
+
+        {/* Check-in QR Code */}
+        <CheckinQrCard slug={restaurant.slug} restaurantName={restaurant.name} />
 
         {/* WhatsApp Business API Credentials */}
         <WhatsAppCredentialsForm restaurant={restaurant} />
