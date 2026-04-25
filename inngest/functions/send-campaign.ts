@@ -223,6 +223,17 @@ export const sendCampaign = inngest.createFunction(
       }
     });
 
+    // 7. Fire event for AI promo extraction
+    await step.sendEvent("trigger-promo-extraction", {
+      name: "campaign/completed",
+      data: {
+        campaignId,
+        restaurantId: campaign.restaurant_id,
+        messageBody: campaign.message_body,
+        audienceSegment: campaign.audience_segment,
+      },
+    });
+
     return { sent: totalSent, campaignId };
   }
 );

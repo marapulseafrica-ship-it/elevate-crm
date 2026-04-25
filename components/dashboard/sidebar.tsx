@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X } from "lucide-react";
+import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X, UtensilsCrossed } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Campaigns", href: "/campaigns", icon: Send },
+  { name: "Menu", href: "/menu", icon: UtensilsCrossed },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
   { name: "Help Center", href: "/help", icon: HelpCircle },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, CheckCheck, Megaphone, Users, Info, X, QrCode, Calendar, ArrowLeft, History } from "lucide-react";
+import { Bell, CheckCheck, Megaphone, Users, Info, X, QrCode, Calendar, ArrowLeft, History, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ const typeIcon: Record<string, any> = {
   customer: Users,
   customer_checkin: QrCode,
   daily_digest: Calendar,
+  new_order: ShoppingBag,
   system: Info,
   info: Info,
 };
@@ -30,6 +31,7 @@ const typeColor: Record<string, string> = {
   campaign_completed: "bg-blue-100 text-blue-600",
   customer_checkin: "bg-orange-100 text-orange-600",
   daily_digest: "bg-purple-100 text-purple-600",
+  new_order: "bg-green-100 text-green-600",
   campaign: "bg-blue-100 text-blue-600",
   customer: "bg-emerald-100 text-emerald-600",
   system: "bg-slate-100 text-slate-500",

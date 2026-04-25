@@ -168,3 +168,68 @@ export interface CampaignPerformance {
   delivery_rate: number;
   completed_at: string;
 }
+
+// ── Menu system ──────────────────────────────────────────────
+
+export interface MenuCategory {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface MenuItem {
+  id: string;
+  restaurant_id: string;
+  category_id: string | null;
+  name: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  is_available: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MenuPromotion {
+  id: string;
+  restaurant_id: string;
+  campaign_id: string | null;
+  title: string;
+  discount_type: "percent" | "fixed";
+  discount_value: number;
+  eligible_segment: "all" | "new" | "returning" | "loyal";
+  applicable_items: string[];
+  expires_at: string | null;
+  is_active: boolean;
+  extracted_from: string | null;
+  created_at: string;
+}
+
+export type OrderStatus = "pending" | "confirmed" | "completed" | "cancelled";
+
+export interface Order {
+  id: string;
+  restaurant_id: string;
+  customer_id: string | null;
+  customer_name: string;
+  table_number: string;
+  status: OrderStatus;
+  total_amount: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  menu_item_id: string | null;
+  item_name: string;
+  item_price: number;
+  quantity: number;
+  subtotal: number;
+}

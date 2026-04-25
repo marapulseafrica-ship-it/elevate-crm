@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, QrCode } from "lucide-react";
+import { CheckCircle2, QrCode, UtensilsCrossed } from "lucide-react";
 
 interface Props {
   restaurantName: string;
@@ -18,6 +18,7 @@ interface Props {
 interface CheckinResult {
   is_new: boolean;
   visit_number: number;
+  segment?: string;
 }
 
 const storageKey = (slug: string) => `elevate_checkin_${slug}`;
@@ -107,6 +108,7 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEna
   };
 
   if (result) {
+    const menuUrl = `/menu/${slug}?name=${encodeURIComponent(submittedName)}&phone=${encodeURIComponent(phone)}&segment=${result.segment ?? (result.visit_number === 1 ? "new" : result.visit_number >= 5 ? "loyal" : "returning")}`;
     return (
       <Card className="w-full max-w-sm shadow-lg border-0">
         <CardContent className="p-8 text-center">
@@ -131,6 +133,13 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEna
               </p>
             </>
           )}
+          <a
+            href={menuUrl}
+            className="mt-5 w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            View Menu &amp; Order
+          </a>
         </CardContent>
       </Card>
     );
