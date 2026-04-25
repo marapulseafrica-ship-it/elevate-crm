@@ -219,7 +219,7 @@ export async function POST(req: NextRequest) {
       .eq("restaurant_id", restaurant.id)
       .gte("visit_date", todayStart.toISOString());
 
-    const uniqueCustomerIds = [...new Set((todayVisits ?? []).map((v: any) => v.customer_id))];
+    const uniqueCustomerIds = Array.from(new Set((todayVisits ?? []).map((v: any) => v.customer_id)));
     // Count how many of today's visitors are returning (total_visits > 1 after this visit)
     const returnCount = uniqueCustomerIds.length;
 
