@@ -19,7 +19,13 @@ export const dailyAlerts = inngest.createFunction(
       return data ?? [];
     });
 
-    // 2. Process each restaurant
+    // 2. Delete notifications older than 90 days
+    await step.run("cleanup-old-notifications", async () => {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      await supabaseAdmin.from("notifications").delete().lt("created_at", cutoff);
+    });
+
+    // 3. Process each restaurant
     await Promise.all(
       restaurants.map((restaurant: any) =>
         step.run(`digest-${restaurant.id}`, async () => {

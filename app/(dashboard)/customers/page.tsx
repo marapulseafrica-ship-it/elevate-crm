@@ -6,7 +6,7 @@ import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getCustomers, getSegmentCounts } from "@/lib/queries/customers";
 import { createClient } from "@/lib/supabase/server";
 import { formatRelativeTime, formatNumber } from "@/lib/utils";
-import { Send, Download, AlertCircle, Heart, UserPlus, Users } from "lucide-react";
+import { Send, AlertCircle, Heart, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import type { CustomerSegment } from "@/types/database";
 
@@ -73,9 +73,6 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               Send Campaign
             </Button>
           </Link>
-          <Button variant="outline" size="icon">
-            <Download className="w-4 h-4" />
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
