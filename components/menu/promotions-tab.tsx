@@ -99,7 +99,7 @@ export function PromotionsTab({ restaurantId, initialPromotions }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-slate-900">Promotions</h3>
-          <p className="text-xs text-slate-500 mt-0.5">AI-extracted promos appear here for review. Activate them to show on the customer menu.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Every campaign you send appears here. Set the discount value, then activate to show it on the customer menu for the right segment.</p>
         </div>
         <Button size="sm" onClick={() => { setShowForm(true); setForm(emptyForm()); }}>
           <Plus className="w-4 h-4 mr-1" /> Add Promo
