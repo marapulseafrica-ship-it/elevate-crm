@@ -61,6 +61,16 @@ export function PromotionsTab({ restaurantId, initialPromotions }: Props) {
     setPromotions((prev) => prev.filter((p) => p.id !== id));
   }
 
+  async function updateDiscount(id: string, type: "percent" | "fixed", value: number) {
+    const { data } = await supabase
+      .from("menu_promotions")
+      .update({ discount_type: type, discount_value: value })
+      .eq("id", id)
+      .select()
+      .single();
+    if (data) setPromotions((prev) => prev.map((p) => p.id === id ? data as MenuPromotion : p));
+  }
+
   async function addPromo() {
     if (!form.title.trim() || !form.discount_value) { setError("Title and discount value required."); return; }
     const val = parseFloat(form.discount_value);
@@ -105,7 +115,7 @@ export function PromotionsTab({ restaurantId, initialPromotions }: Props) {
           </div>
           <div className="space-y-3">
             {pending.map((p) => (
-              <PromoCard key={p.id} promo={p} onToggle={toggleActive} onDelete={deletePromo} />
+              <PromoCard key={p.id} promo={p} onToggle={toggleActive} onDelete={deletePromo} onUpdateDiscount={updateDiscount} />
             ))}
           </div>
         </div>
@@ -120,7 +130,7 @@ export function PromotionsTab({ restaurantId, initialPromotions }: Props) {
           </div>
           <div className="space-y-3">
             {active.map((p) => (
-              <PromoCard key={p.id} promo={p} onToggle={toggleActive} onDelete={deletePromo} />
+              <PromoCard key={p.id} promo={p} onToggle={toggleActive} onDelete={deletePromo} onUpdateDiscount={updateDiscount} />
             ))}
           </div>
         </div>
@@ -182,11 +192,18 @@ export function PromotionsTab({ restaurantId, initialPromotions }: Props) {
   );
 }
 
-function PromoCard({ promo, onToggle, onDelete }: {
+function PromoCard({ promo, onToggle, onDelete, onUpdateDiscount }: {
   promo: MenuPromotion;
   onToggle: (p: MenuPromotion) => void;
   onDelete: (id: string) => void;
+  onUpdateDiscount: (id: string, type: "percent" | "fixed", value: number) => void;
 }) {
+  const [editingDiscount, setEditingDiscount] = useState(false);
+  const [draftType, setDraftType] = useState<"percent" | "fixed">(promo.discount_type);
+  const [draftValue, setDraftValue] = useState(String(promo.discount_value));
+
+  const needsDiscount = promo.discount_value === 0;
+
   return (
     <Card className={`p-4 bg-white ${!promo.is_active ? "border-purple-100" : ""}`}>
       <div className="flex items-start justify-between gap-3">
@@ -195,19 +212,63 @@ function PromoCard({ promo, onToggle, onDelete }: {
             <p className="font-semibold text-sm text-slate-900">{promo.title}</p>
             {promo.campaign_id && (
               <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Sparkles className="w-2.5 h-2.5" /> AI extracted
+                <Sparkles className="w-2.5 h-2.5" /> From campaign
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-orange-600 font-bold text-sm">
-              {promo.discount_type === "percent" ? `${promo.discount_value}% off` : `ZMW ${promo.discount_value} off`}
-            </span>
-            <span className="text-xs text-slate-500">· {segmentLabel[promo.eligible_segment] ?? promo.eligible_segment}</span>
-            {promo.expires_at && (
-              <span className="text-xs text-slate-400">· expires {formatDistanceToNow(new Date(promo.expires_at), { addSuffix: true })}</span>
-            )}
-          </div>
+
+          {editingDiscount ? (
+            <div className="flex items-center gap-2 mt-2">
+              <select
+                value={draftType}
+                onChange={(e) => setDraftType(e.target.value as "percent" | "fixed")}
+                className="border rounded px-2 py-1 text-xs focus:outline-none"
+              >
+                <option value="percent">%</option>
+                <option value="fixed">ZMW</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={draftValue}
+                onChange={(e) => setDraftValue(e.target.value)}
+                className="border rounded px-2 py-1 text-xs w-20 focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  const v = parseFloat(draftValue);
+                  if (!isNaN(v) && v >= 0) {
+                    onUpdateDiscount(promo.id, draftType, v);
+                    setEditingDiscount(false);
+                  }
+                }}
+                className="text-xs text-white bg-primary rounded px-2 py-1"
+              >Save</button>
+              <button onClick={() => setEditingDiscount(false)} className="text-xs text-slate-500">Cancel</button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {needsDiscount ? (
+                <button
+                  onClick={() => setEditingDiscount(true)}
+                  className="text-xs text-orange-500 underline font-medium"
+                >Set discount value</button>
+              ) : (
+                <button
+                  onClick={() => setEditingDiscount(true)}
+                  className="text-orange-600 font-bold text-sm hover:underline"
+                >
+                  {promo.discount_type === "percent" ? `${promo.discount_value}% off` : `ZMW ${promo.discount_value} off`}
+                </button>
+              )}
+              <span className="text-xs text-slate-500">· {segmentLabel[promo.eligible_segment] ?? promo.eligible_segment}</span>
+              {promo.expires_at && (
+                <span className="text-xs text-slate-400">· expires {formatDistanceToNow(new Date(promo.expires_at), { addSuffix: true })}</span>
+              )}
+            </div>
+          )}
+
           {promo.extracted_from && (
             <p className="text-xs text-slate-400 italic mt-1 line-clamp-2">"{promo.extracted_from}"</p>
           )}

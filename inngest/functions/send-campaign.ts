@@ -228,6 +228,8 @@ export const sendCampaign = inngest.createFunction(
       name: "campaign/completed",
       data: {
         campaignId,
+        campaignName: campaign.name,
+        campaignType: campaign.campaign_type,
         restaurantId: campaign.restaurant_id,
         messageBody: campaign.message_body,
         audienceSegment: campaign.audience_segment,
