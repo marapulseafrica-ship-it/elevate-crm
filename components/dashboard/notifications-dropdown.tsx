@@ -101,7 +101,7 @@ export function NotificationsDropdown({ restaurantId }: NotificationsDropdownPro
       </Button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border rounded-xl shadow-lg z-30 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-1rem))] bg-white border rounded-xl shadow-lg z-30 overflow-hidden">
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -114,11 +114,11 @@ export function NotificationsDropdown({ restaurantId }: NotificationsDropdownPro
             )}
             <div className="flex items-center gap-1">
               {!selected && unreadCount > 0 && (
-                <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-blue-600" onClick={handleMarkAllRead}>
+                <Button variant="ghost" size="sm" className="text-xs h-9 px-3 text-blue-600" onClick={handleMarkAllRead}>
                   <CheckCheck className="w-3 h-3 mr-1" /> Mark all read
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOpen(false); setSelected(null); }}>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setOpen(false); setSelected(null); }}>
                 <X className="w-3.5 h-3.5" />
               </Button>
             </div>

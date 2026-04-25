@@ -88,7 +88,7 @@ export function Sidebar() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute left-0 top-0 h-full w-72 bg-gradient-to-b from-blue-50 to-slate-50 border-r flex flex-col z-50">
+          <aside className="absolute left-0 top-0 h-full w-[min(80vw,288px)] bg-gradient-to-b from-blue-50 to-slate-50 border-r flex flex-col z-50">
             {navContent}
           </aside>
         </div>

@@ -38,7 +38,7 @@ export function ExtendButton({ campaignId, endsAt }: Props) {
       size="sm"
       onClick={handleExtend}
       disabled={loading}
-      className="text-xs h-7 px-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+      className="text-xs h-9 px-3 text-blue-600 border-blue-200 hover:bg-blue-50"
     >
       {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarPlus className="w-3 h-3 mr-1" />}
       Extend 30d
