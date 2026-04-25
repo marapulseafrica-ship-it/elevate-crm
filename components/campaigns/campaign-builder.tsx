@@ -68,15 +68,17 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
     setSelectedTemplateId(templateId);
     const tpl = templates.find((t) => t.id === templateId);
     if (tpl) {
-      setMessageBody(tpl.body);
+      // Strip auto-added greeting so textarea shows only the offer/body
+      const cleaned = tpl.body
+        .replace(/^Hi \{\{customer_name\}\}[,.]?\s*/i, "")
+        .replace(/\{\{restaurant_name\}\}/g, restaurantName)
+        .trim();
+      setMessageBody(cleaned);
       if (!campaignName) setCampaignName(tpl.name);
     }
   };
 
-  const previewMessage = messageBody
-    .trim()
-    .replace(/\{\{customer_name\}\}/g, "John")
-    .replace(/\{\{restaurant_name\}\}/g, restaurantName);
+  const previewMessage = `Hi John, thank you for being a valued customer at ${restaurantName}. ${messageBody.trim()} We hope to see you soon!`;
 
   const audienceCount = segmentCounts[selectedAudience] || 0;
 
@@ -267,7 +269,7 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
             className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <p className="text-xs text-slate-500 mt-1">
-            Write your full message. Use <span className="font-mono bg-slate-100 px-1 rounded">{"{{customer_name}}"}</span> and <span className="font-mono bg-slate-100 px-1 rounded">{"{{restaurant_name}}"}</span> as placeholders — they are replaced automatically when sent.
+            Just write your offer or message. The greeting and closing are added automatically when sent.
           </p>
 
           {messageBody && (
