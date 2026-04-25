@@ -15,6 +15,7 @@ interface OrderWithItems extends Order {
 
 interface Props {
   restaurantId: string;
+  onPendingCountChange?: (count: number) => void;
 }
 
 const statusColor: Record<OrderStatus, string> = {
@@ -24,7 +25,7 @@ const statusColor: Record<OrderStatus, string> = {
   cancelled: "bg-slate-100 text-slate-500",
 };
 
-export function OrdersTab({ restaurantId }: Props) {
+export function OrdersTab({ restaurantId, onPendingCountChange }: Props) {
   const supabase = createClient();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,9 @@ export function OrdersTab({ restaurantId }: Props) {
       .eq("restaurant_id", restaurantId)
       .order("created_at", { ascending: false })
       .limit(100);
-    setOrders((data as OrderWithItems[]) ?? []);
+    const loaded = (data as OrderWithItems[]) ?? [];
+    setOrders(loaded);
+    onPendingCountChange?.(loaded.filter((o) => o.status === "pending").length);
     setLoading(false);
   }, [restaurantId, supabase]);
 
@@ -52,7 +55,11 @@ export function OrdersTab({ restaurantId }: Props) {
 
   async function updateStatus(orderId: string, status: OrderStatus) {
     await supabase.from("orders").update({ status }).eq("id", orderId);
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o));
+    setOrders((prev) => {
+      const updated = prev.map((o) => o.id === orderId ? { ...o, status } : o);
+      onPendingCountChange?.(updated.filter((o) => o.status === "pending").length);
+      return updated;
+    });
   }
 
   const displayed = filter === "active"

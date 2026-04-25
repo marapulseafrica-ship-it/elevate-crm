@@ -16,10 +16,11 @@ interface Props {
 
 export function MenuPageTabs({ restaurantId, initialCategories, initialItems, initialPromotions, pendingOrders }: Props) {
   const [tab, setTab] = useState<"items" | "orders" | "promotions">("items");
+  const [pendingCount, setPendingCount] = useState(pendingOrders);
 
   const tabs = [
     { id: "items" as const, label: "Menu Items" },
-    { id: "orders" as const, label: "Orders", badge: pendingOrders > 0 ? pendingOrders : undefined },
+    { id: "orders" as const, label: "Orders", badge: pendingCount > 0 ? pendingCount : undefined },
     { id: "promotions" as const, label: "Promotions" },
   ];
 
@@ -51,7 +52,7 @@ export function MenuPageTabs({ restaurantId, initialCategories, initialItems, in
           initialItems={initialItems}
         />
       )}
-      {tab === "orders" && <OrdersTab restaurantId={restaurantId} />}
+      {tab === "orders" && <OrdersTab restaurantId={restaurantId} onPendingCountChange={setPendingCount} />}
       {tab === "promotions" && (
         <PromotionsTab restaurantId={restaurantId} initialPromotions={initialPromotions} />
       )}
