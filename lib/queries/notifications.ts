@@ -23,6 +23,19 @@ export async function getNotifications(restaurantId: string): Promise<Notificati
   return data as Notification[];
 }
 
+export async function getAllNotifications(restaurantId: string, page = 0, pageSize = 30): Promise<{ data: Notification[]; total: number }> {
+  const supabase = createClient();
+  const { data, error, count } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact" })
+    .eq("restaurant_id", restaurantId)
+    .order("created_at", { ascending: false })
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+
+  if (error) return { data: [], total: 0 };
+  return { data: data as Notification[], total: count ?? 0 };
+}
+
 export async function markAllNotificationsRead(restaurantId: string): Promise<void> {
   const supabase = createClient();
   await supabase

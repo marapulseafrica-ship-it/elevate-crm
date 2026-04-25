@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, CheckCheck, Megaphone, Users, Info, X, QrCode, Calendar, ArrowLeft } from "lucide-react";
+import { Bell, CheckCheck, Megaphone, Users, Info, X, QrCode, Calendar, ArrowLeft, History } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   getNotifications,
@@ -186,6 +187,19 @@ export function NotificationsDropdown({ restaurantId }: NotificationsDropdownPro
                   );
                 })
               )}
+            </div>
+          )}
+
+          {/* Footer */}
+          {!selected && (
+            <div className="border-t px-4 py-2.5">
+              <Link
+                href="/notifications"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary transition-colors"
+              >
+                <History className="w-3.5 h-3.5" /> View full notification history
+              </Link>
             </div>
           )}
         </div>
