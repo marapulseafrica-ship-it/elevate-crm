@@ -4,8 +4,9 @@ import { sendCampaign } from "@/inngest/functions/send-campaign";
 import { dailyAlerts } from "@/inngest/functions/daily-alerts";
 import { weeklyReport } from "@/inngest/functions/weekly-report";
 import { extractPromo } from "@/inngest/functions/extract-promo";
+import { biweeklySummary } from "@/inngest/functions/biweekly-summary";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [sendCampaign, dailyAlerts, weeklyReport, extractPromo],
+  functions: [sendCampaign, dailyAlerts, weeklyReport, extractPromo, biweeklySummary],
 });

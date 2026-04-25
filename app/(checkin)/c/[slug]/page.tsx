@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
-import { CheckinForm } from "@/components/checkin/checkin-form";
+import { CheckinGate } from "@/components/checkin/checkin-gate";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +22,7 @@ export default async function CheckinPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50 flex items-center justify-center p-4">
-      <CheckinForm
+      <CheckinGate
         restaurantName={restaurant.name}
         logoUrl={restaurant.logo_url}
         apiKey={restaurant.api_key}

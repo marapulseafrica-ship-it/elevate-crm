@@ -12,6 +12,7 @@ import { CheckinLocationCard } from "@/components/settings/checkin-location-card
 import { ProfilePictureUpload } from "@/components/settings/profile-picture-upload";
 import { NotificationSettingsForm } from "@/components/settings/notification-settings-form";
 import { SecuritySettingsForm } from "@/components/settings/security-settings-form";
+import { GoogleReviewForm } from "@/components/settings/google-review-form";
 
 export default async function SettingsPage() {
   const restaurant = (await getCurrentRestaurant())!;
@@ -63,6 +64,9 @@ export default async function SettingsPage() {
 
         {/* Notification Settings */}
         <NotificationSettingsForm restaurant={restaurant} />
+
+        {/* Google Review URL */}
+        <GoogleReviewForm restaurantId={restaurant.id} initialUrl={restaurant.google_review_url ?? null} />
 
         {/* Security Settings */}
         <SecuritySettingsForm />

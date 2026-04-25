@@ -92,8 +92,10 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               </thead>
               <tbody>
                 {customersResult.data.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50">
-                    <td className="px-6 py-4 text-sm font-medium">{c.name}</td>
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50 cursor-pointer">
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <Link href={`/customers/${c.id}`} className="hover:text-primary transition-colors">{c.name}</Link>
+                    </td>
                     <td className="px-6 py-4 text-sm text-slate-600">{c.phone}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{formatRelativeTime(c.last_visit_date)}</td>
                     <td className="px-6 py-4 text-sm">{c.total_visits}</td>
@@ -101,11 +103,13 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                       <Badge variant={segmentVariant(c.segment) as any} className="capitalize">{c.segment}</Badge>
                     </td>
                     <td className="px-6 py-4">
-                      {c.segment === "inactive" ? (
-                        <Badge variant="outline" className="text-slate-600">View</Badge>
-                      ) : (
-                        <Badge variant="active">Active</Badge>
-                      )}
+                      <Link href={`/customers/${c.id}`}>
+                        {c.segment === "inactive" ? (
+                          <Badge variant="outline" className="text-slate-600">View</Badge>
+                        ) : (
+                          <Badge variant="active">Active</Badge>
+                        )}
+                      </Link>
                     </td>
                   </tr>
                 ))}

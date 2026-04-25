@@ -68,6 +68,61 @@ export async function getCustomers(
   };
 }
 
+export interface CustomerProfile {
+  customer: CustomerWithSegment;
+  totalSpent: number;
+  avgSpend: number;
+  daysSinceLastVisit: number | null;
+  topItems: { item_name: string; total_quantity: number }[];
+  recentOrders: { id: string; total_amount: number; status: string; created_at: string; items: { item_name: string; quantity: number }[] }[];
+}
+
+export async function getCustomerProfile(customerId: string, restaurantId: string): Promise<CustomerProfile | null> {
+  const supabase = createClient();
+
+  const [customerRes, ordersRes] = await Promise.all([
+    supabase
+      .from("customers_with_segment")
+      .select("*")
+      .eq("id", customerId)
+      .eq("restaurant_id", restaurantId)
+      .single(),
+    supabase
+      .from("orders")
+      .select("id, total_amount, status, created_at, items:order_items(item_name, quantity)")
+      .eq("customer_id", customerId)
+      .eq("restaurant_id", restaurantId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  if (!customerRes.data) return null;
+
+  const orders = (ordersRes.data ?? []) as any[];
+  const completedOrders = orders.filter((o) => o.status === "completed");
+  const totalSpent = completedOrders.reduce((s: number, o: any) => s + o.total_amount, 0);
+  const avgSpend = completedOrders.length > 0 ? totalSpent / completedOrders.length : 0;
+
+  // Aggregate item counts
+  const itemMap: Record<string, number> = {};
+  for (const o of completedOrders) {
+    for (const i of o.items ?? []) {
+      itemMap[i.item_name] = (itemMap[i.item_name] ?? 0) + i.quantity;
+    }
+  }
+  const topItems = Object.entries(itemMap)
+    .map(([item_name, total_quantity]) => ({ item_name, total_quantity }))
+    .sort((a, b) => b.total_quantity - a.total_quantity)
+    .slice(0, 3);
+
+  const customer = customerRes.data as CustomerWithSegment;
+  const daysSinceLastVisit = customer.last_visit_date
+    ? Math.floor((Date.now() - new Date(customer.last_visit_date).getTime()) / 86400000)
+    : null;
+
+  return { customer, totalSpent, avgSpend, daysSinceLastVisit, topItems, recentOrders: orders };
+}
+
 export async function getSegmentCounts(restaurantId: string) {
   const supabase = createClient();
 

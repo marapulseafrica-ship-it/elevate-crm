@@ -4,6 +4,8 @@ import { useState } from "react";
 import { MenuItemsTab } from "./menu-items-tab";
 import { OrdersTab } from "./orders-tab";
 import { PromotionsTab } from "./promotions-tab";
+import { FeedbackTab } from "./feedback-tab";
+import { AiInsightsTab } from "./ai-insights-tab";
 import type { MenuCategory, MenuItem, MenuPromotion } from "@/types/database";
 
 interface Props {
@@ -15,13 +17,15 @@ interface Props {
 }
 
 export function MenuPageTabs({ restaurantId, initialCategories, initialItems, initialPromotions, pendingOrders }: Props) {
-  const [tab, setTab] = useState<"items" | "orders" | "promotions">("items");
+  const [tab, setTab] = useState<"items" | "orders" | "promotions" | "feedback" | "ai">("items");
   const [pendingCount, setPendingCount] = useState(pendingOrders);
 
   const tabs = [
     { id: "items" as const, label: "Menu Items" },
     { id: "orders" as const, label: "Orders", badge: pendingCount > 0 ? pendingCount : undefined },
     { id: "promotions" as const, label: "Promotions" },
+    { id: "feedback" as const, label: "Feedback" },
+    { id: "ai" as const, label: "AI Insights" },
   ];
 
   return (
@@ -56,6 +60,8 @@ export function MenuPageTabs({ restaurantId, initialCategories, initialItems, in
       {tab === "promotions" && (
         <PromotionsTab restaurantId={restaurantId} initialPromotions={initialPromotions} />
       )}
+      {tab === "feedback" && <FeedbackTab restaurantId={restaurantId} />}
+      {tab === "ai" && <AiInsightsTab restaurantId={restaurantId} />}
     </div>
   );
 }

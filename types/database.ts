@@ -40,6 +40,7 @@ export interface Restaurant {
   latitude: number | null;
   longitude: number | null;
   checkin_location_enabled: boolean;
+  google_review_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -232,4 +233,26 @@ export interface OrderItem {
   item_price: number;
   quantity: number;
   subtotal: number;
+}
+
+export interface OrderFeedback {
+  id: string;
+  order_id: string;
+  restaurant_id: string;
+  customer_id: string | null;
+  rating: number;
+  comment: string | null;
+  is_public: boolean;
+  created_at: string;
+}
+
+export interface Branch {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_active: boolean;
+  created_at: string;
 }

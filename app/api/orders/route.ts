@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { slug, customer_name, phone, table_number, items, notes } = body ?? {};
+  const { slug, customer_name, phone, table_number, items, notes, promotion_id } = body ?? {};
 
   if (!slug || !customer_name?.trim() || !phone?.trim() || !table_number?.trim() || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
       total_amount: totalAmount,
       notes: notes?.trim() || null,
       status: "pending",
+      promotion_id: promotion_id ?? null,
     })
     .select("id")
     .single();

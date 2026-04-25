@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { MenuCategory, MenuItem, MenuPromotion } from "@/types/database";
-import { ShoppingCart, Plus, Minus, Trash2, ChevronRight, CheckCircle, UtensilsCrossed } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, CheckCircle, UtensilsCrossed, Star, ExternalLink } from "lucide-react";
 
 interface CartItem {
   itemId: string;
@@ -15,6 +15,8 @@ interface Props {
   restaurantName: string;
   logoUrl: string | null;
   slug: string;
+  restaurantId: string;
+  googleReviewUrl: string | null;
   customerName: string;
   phone: string;
   categories: MenuCategory[];
@@ -45,7 +47,52 @@ function applyPromo(
   return { discountedPrice: Math.round(discounted * 100) / 100, promo: applicablePromo };
 }
 
-export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, categories, items, promotions, customerSegment }: Props) {
+function getUpsells(cart: CartItem[], items: MenuItem[], categories: MenuCategory[]): MenuItem[] {
+  const catByName = (keyword: string) =>
+    categories.find((c) => c.name.toLowerCase().includes(keyword.toLowerCase()))?.id;
+
+  const cartNames = cart.map((c) => c.name.toLowerCase());
+  const inCart = (kw: string) => cartNames.some((n) => n.includes(kw.toLowerCase()));
+  const inCartByCategory = (catId: string | undefined) =>
+    catId ? cart.some((c) => items.find((i) => i.id === c.itemId)?.category_id === catId) : false;
+
+  const drinksCatId  = catByName("drink") ?? catByName("beverage");
+  const chipsCatId   = catByName("side")  ?? catByName("chip") ?? catByName("fries");
+  const dessertCatId = catByName("dessert") ?? catByName("sweet");
+
+  const cheapest = (catId: string | undefined) =>
+    catId ? items
+      .filter((i) => i.is_available && i.category_id === catId && !cart.some((c) => c.itemId === i.id))
+      .sort((a, b) => a.price - b.price)[0] ?? null
+    : null;
+
+  const suggestions: MenuItem[] = [];
+
+  const hasBurgerOrWrap = inCart("burger") || inCart("pita") || inCart("wrap");
+  const hasChicken = inCart("chicken") || inCart("wing") || inCart("breast");
+  const hasDrink   = inCartByCategory(drinksCatId);
+
+  if (hasBurgerOrWrap) {
+    const chips = cheapest(chipsCatId);
+    const drink = cheapest(drinksCatId);
+    if (chips) suggestions.push(chips);
+    if (drink) suggestions.push(drink);
+  } else if (hasChicken) {
+    const drink   = cheapest(drinksCatId);
+    const dessert = cheapest(dessertCatId);
+    if (drink)   suggestions.push(drink);
+    if (dessert) suggestions.push(dessert);
+  }
+
+  if (!hasDrink && suggestions.length < 2) {
+    const drink = cheapest(drinksCatId);
+    if (drink && !suggestions.some((s) => s.id === drink.id)) suggestions.push(drink);
+  }
+
+  return suggestions.slice(0, 2);
+}
+
+export function MenuView({ restaurantName, logoUrl, slug, restaurantId, googleReviewUrl, customerName, phone, categories, items, promotions, customerSegment }: Props) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>(categories[0]?.id ?? "all");
   const [step, setStep] = useState<"browse" | "cart" | "confirm" | "done">("browse");
@@ -54,6 +101,10 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Feedback state
+  const [rating, setRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   const filteredItems = useMemo(() => {
     if (activeCategory === "all") return items.filter((i) => i.is_available);
@@ -92,6 +143,17 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
     if (!tableNumber.trim()) { setError("Please enter your table number."); return; }
     setError(null);
     setSubmitting(true);
+
+    // Find the first promotion applied to any cart item
+    let appliedPromotionId: string | undefined;
+    for (const ci of cart) {
+      const item = items.find((i) => i.id === ci.itemId);
+      if (item) {
+        const { promo } = applyPromo(item.price, item.id, promotions, customerSegment);
+        if (promo) { appliedPromotionId = promo.id; break; }
+      }
+    }
+
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -103,6 +165,7 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
           table_number: tableNumber.trim(),
           items: cart.map((c) => ({ menu_item_id: c.itemId, qty: c.qty })),
           notes: notes.trim() || undefined,
+          promotion_id: appliedPromotionId,
         }),
       });
       const data = await res.json();
@@ -114,6 +177,37 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function submitFeedback(r: number) {
+    setRating(r);
+    if (feedbackSubmitted || !orderId) return;
+    await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        order_id: orderId,
+        restaurant_id: restaurantId,
+        rating: r,
+        comment: r <= 3 ? feedbackComment : undefined,
+      }),
+    });
+    if (r >= 4) setFeedbackSubmitted(true);
+  }
+
+  async function submitPrivateFeedback() {
+    if (feedbackSubmitted || !orderId) return;
+    await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        order_id: orderId,
+        restaurant_id: restaurantId,
+        rating,
+        comment: feedbackComment,
+      }),
+    });
+    setFeedbackSubmitted(true);
   }
 
   // ── Done screen ────────────────────────────────────────────
@@ -139,7 +233,59 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
               <span className="text-orange-600">ZMW {cartTotal.toFixed(2)}</span>
             </div>
           </div>
-          <p className="text-xs text-slate-400">{restaurantName}</p>
+
+          {/* Feedback section */}
+          {!feedbackSubmitted ? (
+            <div className="border-t pt-5 mt-2">
+              <p className="text-sm font-semibold text-slate-700 mb-3">How was your experience?</p>
+              <div className="flex justify-center gap-2 mb-3">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => submitFeedback(star)}
+                    className="transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`w-8 h-8 ${star <= rating ? "fill-orange-400 text-orange-400" : "text-slate-300"}`}
+                    />
+                  </button>
+                ))}
+              </div>
+              {rating > 0 && rating >= 4 && googleReviewUrl && (
+                <a
+                  href={googleReviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+                >
+                  <ExternalLink className="w-4 h-4" /> Leave a Google Review
+                </a>
+              )}
+              {rating > 0 && rating <= 3 && (
+                <div className="mt-2 text-left">
+                  <textarea
+                    placeholder="Tell us what we can improve…"
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    rows={3}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                  />
+                  <button
+                    onClick={submitPrivateFeedback}
+                    className="mt-2 w-full bg-slate-700 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-xl text-sm"
+                  >
+                    Send Feedback
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="border-t pt-4 mt-2">
+              <p className="text-sm text-green-600 font-medium">Thanks for your feedback!</p>
+            </div>
+          )}
+
+          <p className="text-xs text-slate-400 mt-4">{restaurantName}</p>
         </div>
       </div>
     );
@@ -179,6 +325,32 @@ export function MenuView({ restaurantName, logoUrl, slug, customerName, phone, c
               </div>
             );
           })}
+
+          {/* Upsell suggestions */}
+          {(() => {
+            const upsells = getUpsells(cart, items, categories);
+            if (upsells.length === 0) return null;
+            return (
+              <div className="bg-orange-50 rounded-xl p-3">
+                <p className="text-xs font-semibold text-orange-700 mb-2">You might also like</p>
+                <div className="flex gap-2">
+                  {upsells.map((u) => {
+                    const { discountedPrice } = applyPromo(u.price, u.id, promotions, customerSegment);
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => addToCart(u)}
+                        className="flex-1 bg-white border border-orange-200 rounded-xl p-2 text-left hover:bg-orange-50 transition-colors"
+                      >
+                        <p className="text-xs font-semibold text-slate-800 leading-tight line-clamp-2">{u.name}</p>
+                        <p className="text-xs text-orange-600 font-bold mt-1">+ ZMW {discountedPrice.toFixed(2)}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
             <div>

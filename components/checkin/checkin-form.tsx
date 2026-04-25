@@ -18,7 +18,7 @@ interface Props {
 interface CheckinResult {
   is_new: boolean;
   visit_number: number;
-  segment?: string;
+  segment: string;
 }
 
 const storageKey = (slug: string) => `elevate_checkin_${slug}`;
@@ -93,12 +93,22 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEna
           setError(data.error ?? "Something went wrong. Please try again.");
         }
       } else {
-        // Save to localStorage for next visit
+        // Save form data for next visit
         try {
           localStorage.setItem(storageKey(slug), JSON.stringify({ name, phone, email }));
         } catch {}
+        // Save menu session (2h window — skip form on next scan)
+        const segment = data.segment ?? (data.visit_number === 1 ? "new" : data.visit_number >= 5 ? "loyal" : "returning");
+        try {
+          localStorage.setItem(`elevate_menu_session_${slug}`, JSON.stringify({
+            name,
+            phone,
+            segment,
+            expiresAt: Date.now() + 2 * 60 * 60 * 1000,
+          }));
+        } catch {}
         setSubmittedName(name);
-        setResult({ is_new: data.is_new, visit_number: data.visit_number });
+        setResult({ is_new: data.is_new, visit_number: data.visit_number, segment });
       }
     } catch {
       setError("Network error. Please try again.");
@@ -108,7 +118,7 @@ export function CheckinForm({ restaurantName, logoUrl, apiKey, slug, locationEna
   };
 
   if (result) {
-    const menuUrl = `/menu/${slug}?name=${encodeURIComponent(submittedName)}&phone=${encodeURIComponent(phone)}&segment=${result.segment ?? (result.visit_number === 1 ? "new" : result.visit_number >= 5 ? "loyal" : "returning")}`;
+    const menuUrl = `/menu/${slug}?name=${encodeURIComponent(submittedName)}&phone=${encodeURIComponent(phone)}&segment=${result.segment}`;
     return (
       <Card className="w-full max-w-sm shadow-lg border-0">
         <CardContent className="p-8 text-center">

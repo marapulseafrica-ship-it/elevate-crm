@@ -16,7 +16,7 @@ interface Props {
 export default async function MenuPage({ params, searchParams }: Props) {
   const { data: restaurant } = await supabaseAdmin
     .from("restaurants")
-    .select("id, name, logo_url, is_active")
+    .select("id, name, logo_url, is_active, google_review_url")
     .eq("slug", params.slug)
     .single();
 
@@ -56,6 +56,8 @@ export default async function MenuPage({ params, searchParams }: Props) {
       restaurantName={restaurant.name}
       logoUrl={restaurant.logo_url}
       slug={params.slug}
+      restaurantId={restaurant.id}
+      googleReviewUrl={restaurant.google_review_url ?? null}
       customerName={customerName}
       phone={phone}
       categories={(categories ?? []) as MenuCategory[]}

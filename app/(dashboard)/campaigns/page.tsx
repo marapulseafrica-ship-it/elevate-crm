@@ -10,6 +10,7 @@ import { Send, MessageSquare, TrendingUp, Activity } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { formatNumber } from "@/lib/utils";
 import { ExtendButton } from "@/components/campaigns/extend-button";
+import { AiTimingCard } from "@/components/campaigns/ai-timing-card";
 
 export default async function CampaignsPage() {
   const restaurant = (await getCurrentRestaurant())!;
@@ -90,6 +91,9 @@ export default async function CampaignsPage() {
             </div>
           </Card>
         </div>
+
+        {/* AI timing recommendation */}
+        <AiTimingCard />
 
         {/* Campaign builder */}
         <CampaignBuilder
