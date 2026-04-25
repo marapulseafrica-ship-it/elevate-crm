@@ -13,7 +13,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
 
 export const biweeklySummary = inngest.createFunction(
-  { id: "biweekly-summary", triggers: [{ cron: "TZ=Africa/Lusaka 0 8 1,15 * *" }, { cron: "TZ=Africa/Lusaka 15 23 * * *" }] },
+  { id: "biweekly-summary", triggers: [{ cron: "TZ=Africa/Lusaka 0 8 1,15 * *" }, { cron: "TZ=Africa/Lusaka 0 0 * * *" }] },
   async ({ step }: { step: any }) => {
     const restaurants = await step.run("get-restaurants", async () => {
       const { data } = await supabaseAdmin
