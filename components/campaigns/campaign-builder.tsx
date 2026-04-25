@@ -73,7 +73,10 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
     }
   };
 
-  const previewMessage = `Hi John, thank you for being a valued customer at ${restaurantName}. ${messageBody.trim()} We hope to see you soon!`;
+  const previewMessage = messageBody
+    .trim()
+    .replace(/\{\{customer_name\}\}/g, "John")
+    .replace(/\{\{restaurant_name\}\}/g, restaurantName);
 
   const audienceCount = segmentCounts[selectedAudience] || 0;
 
@@ -264,7 +267,7 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
             className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <p className="text-xs text-slate-500 mt-1">
-            Write your custom offer or message here. The customer's name and your restaurant name are added automatically by the WhatsApp template.
+            Write your full message. Use <span className="font-mono bg-slate-100 px-1 rounded">{"{{customer_name}}"}</span> and <span className="font-mono bg-slate-100 px-1 rounded">{"{{restaurant_name}}"}</span> as placeholders — they are replaced automatically when sent.
           </p>
 
           {messageBody && (
