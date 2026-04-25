@@ -69,6 +69,14 @@ export const weeklyReport = inngest.createFunction(
 
           const inactiveCount = inactiveData ?? 0;
 
+          await supabaseAdmin.from("notifications").insert({
+            restaurant_id: restaurant.id,
+            type: "daily_digest",
+            title: `Weekly Report — ${weekRange}`,
+            body: `New customers: ${newCustomers ?? 0} · Return visits: ${returnVisits} · Campaigns sent: ${campaignsSent} · Inactive: ${inactiveCount}`,
+            is_read: false,
+          });
+
           await sendEmail(
             restaurant.email,
             `📊 Weekly report — ${restaurant.name}, ${weekRange}`,

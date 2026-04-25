@@ -5,7 +5,7 @@ export interface Notification {
   restaurant_id: string;
   title: string;
   body: string | null;
-  type: "campaign" | "customer" | "system" | "info";
+  type: "campaign" | "customer" | "system" | "info" | "campaign_completed" | "customer_checkin" | "daily_digest";
   is_read: boolean;
   created_at: string;
 }
