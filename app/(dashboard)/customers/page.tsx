@@ -91,28 +91,40 @@ export default async function CustomersPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {customersResult.data.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50 cursor-pointer">
-                    <td className="px-6 py-4 text-sm font-medium">
-                      <Link href={`/customers/${c.id}`} className="hover:text-primary transition-colors">{c.name}</Link>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{c.phone}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{formatRelativeTime(c.last_visit_date)}</td>
-                    <td className="px-6 py-4 text-sm">{c.total_visits}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant={segmentVariant(c.segment) as any} className="capitalize">{c.segment}</Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link href={`/customers/${c.id}`}>
-                        {c.segment === "inactive" ? (
-                          <Badge variant="outline" className="text-slate-600">View</Badge>
-                        ) : (
-                          <Badge variant="active">Active</Badge>
-                        )}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {customersResult.data.map((c) => {
+                  const href = `/customers/${c.id}`;
+                  const cell = "block w-full h-full";
+                  return (
+                    <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50 cursor-pointer">
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <Link href={href} className="block hover:text-primary transition-colors">{c.name}</Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <Link href={href} className={cell}>{c.phone}</Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <Link href={href} className={cell}>{formatRelativeTime(c.last_visit_date)}</Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <Link href={href} className={cell}>{c.total_visits}</Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link href={href} className={cell}>
+                          <Badge variant={segmentVariant(c.segment) as any} className="capitalize">{c.segment}</Badge>
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link href={href} className={cell}>
+                          {c.segment === "inactive" ? (
+                            <Badge variant="outline" className="text-slate-600">View</Badge>
+                          ) : (
+                            <Badge variant="active">Active</Badge>
+                          )}
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {customersResult.data.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">

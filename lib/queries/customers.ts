@@ -86,7 +86,7 @@ export async function getCustomerProfile(customerId: string, restaurantId: strin
       .select("*")
       .eq("id", customerId)
       .eq("restaurant_id", restaurantId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("orders")
       .select("id, total_amount, status, created_at, items:order_items(item_name, quantity)")
@@ -96,6 +96,8 @@ export async function getCustomerProfile(customerId: string, restaurantId: strin
       .limit(20),
   ]);
 
+  if (customerRes.error) console.error("getCustomerProfile customer error:", customerRes.error);
+  if (ordersRes.error)   console.error("getCustomerProfile orders error:", ordersRes.error);
   if (!customerRes.data) return null;
 
   const orders = (ordersRes.data ?? []) as any[];
