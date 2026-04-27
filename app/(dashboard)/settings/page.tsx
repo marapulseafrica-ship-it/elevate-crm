@@ -42,7 +42,9 @@ export default async function SettingsPage() {
             <h2 className="text-xl font-semibold">{restaurant.name}</h2>
             <div className="text-sm text-slate-500">{restaurant.email}</div>
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant="active" className="capitalize">{restaurant.subscription_tier}</Badge>
+              <Link href="/billing">
+                <Badge variant="active" className="capitalize cursor-pointer hover:opacity-80 transition-opacity">{restaurant.subscription_tier}</Badge>
+              </Link>
               <span className="text-xs text-slate-500">{restaurant.country} · {restaurant.timezone}</span>
             </div>
           </div>

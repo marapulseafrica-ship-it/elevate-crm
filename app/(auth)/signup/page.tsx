@@ -44,12 +44,18 @@ export default function SignupPage() {
 
     // Create the restaurant for this user
     const slug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+    const trialExpiry = new Date();
+    trialExpiry.setMonth(trialExpiry.getMonth() + 3);
+
     const { error: restError } = await supabase.from("restaurants").insert({
       owner_user_id: authData.user.id,
       name: restaurantName,
       slug: `${slug}-${authData.user.id.slice(0, 6)}`,
       email,
       whatsapp_number: whatsappNumber,
+      subscription_tier: "starter",
+      subscription_status: "trial",
+      subscription_expires_at: trialExpiry.toISOString(),
     });
 
     if (restError) {

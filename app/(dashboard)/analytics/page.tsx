@@ -9,6 +9,7 @@ import { getCampaignPerformance, getCampaignStats } from "@/lib/queries/campaign
 import { getSegmentCounts } from "@/lib/queries/customers";
 import { getRevenueBySegment } from "@/lib/queries/analytics";
 import { createClient } from "@/lib/supabase/server";
+import { canAccess, isSuperAdmin, type PlanTier } from "@/lib/plans";
 import { Send, Activity, TrendingUp, Users } from "lucide-react";
 import { format } from "date-fns";
 import { formatNumber } from "@/lib/utils";
@@ -17,6 +18,11 @@ export default async function AnalyticsPage() {
   const restaurant = (await getCurrentRestaurant())!;
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
+  const superAdmin = isSuperAdmin(user?.email);
+  const canAccessRevenue = superAdmin || canAccess(tier, "revenue_analytics");
+  const canAccessPromoRoi = superAdmin || canAccess(tier, "promo_roi");
 
   const [campaigns, stats, segCounts, revenue] = await Promise.all([
     getCampaignPerformance(restaurant.id, 20),
@@ -77,6 +83,8 @@ export default async function AnalyticsPage() {
           revenue={revenue}
           bestCampaign={bestCampaign}
           restaurantId={restaurant.id}
+          canAccessRevenue={canAccessRevenue}
+          canAccessPromoRoi={canAccessPromoRoi}
           analyticsChartsSlot={
             <div className="space-y-6">
               <AnalyticsCharts

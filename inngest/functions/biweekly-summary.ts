@@ -105,8 +105,9 @@ export const biweeklySummary = inngest.createFunction(
     const restaurants = await step.run("get-restaurants", async () => {
       const { data } = await supabaseAdmin
         .from("restaurants")
-        .select("id, name, email, notification_preferences")
-        .eq("is_active", true);
+        .select("id, name, email, notification_preferences, subscription_tier")
+        .eq("is_active", true)
+        .in("subscription_tier", ["pro", "premium"]);
       return data ?? [];
     });
 

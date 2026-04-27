@@ -3,6 +3,8 @@ import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { UpgradeBanner } from "@/components/billing/upgrade-banner";
+import { isSuperAdmin } from "@/lib/plans";
  
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -57,11 +59,17 @@ WHERE slug = 'pizza-palace';`}
     );
   }
  
+  const superAdmin = isSuperAdmin(user.email);
+  const isExpired = !superAdmin && restaurant.subscription_status === "expired";
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-x-hidden">{children}</main>
+        <div className="flex-1 min-w-0 overflow-x-hidden flex flex-col">
+          <UpgradeBanner isExpired={isExpired} tier={restaurant.subscription_tier} />
+          <main className="flex-1">{children}</main>
+        </div>
       </div>
     </SidebarProvider>
   );

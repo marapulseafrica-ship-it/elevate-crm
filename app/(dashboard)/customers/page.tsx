@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getCustomers, getSegmentCounts } from "@/lib/queries/customers";
 import { createClient } from "@/lib/supabase/server";
+import { getPlanLimits, isSuperAdmin, type PlanTier } from "@/lib/plans";
 import { formatRelativeTime, formatNumber } from "@/lib/utils";
 import { Send, AlertCircle, Heart, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
@@ -23,10 +24,16 @@ export default async function CustomersPage({ searchParams }: PageProps) {
   const search = searchParams.search || "";
   const page = parseInt(searchParams.page || "1", 10);
 
+  const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
+  const superAdmin = isSuperAdmin(user?.email);
+  const planLimits = getPlanLimits(tier);
+
   const [customersResult, counts] = await Promise.all([
     getCustomers(restaurant.id, { segment, search, page, pageSize: 10 }),
     getSegmentCounts(restaurant.id),
   ]);
+
+  const customerLimitReached = !superAdmin && planLimits.customers !== Infinity && counts.all >= planLimits.customers;
 
   const segmentVariant = (seg: string) => {
     if (seg === "loyal") return "loyal";
@@ -74,6 +81,19 @@ export default async function CustomersPage({ searchParams }: PageProps) {
             </Button>
           </Link>
         </div>
+
+        {/* Customer limit warning */}
+        {planLimits.customers !== Infinity && (
+          <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg border ${customerLimitReached ? "bg-red-50 border-red-200 text-red-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {customerLimitReached
+                ? `You've reached your ${formatNumber(planLimits.customers)}-customer limit. `
+                : `${formatNumber(counts.all)} / ${formatNumber(planLimits.customers)} customers. `}
+              {customerLimitReached && <Link href="/billing" className="font-semibold underline">Upgrade to add more</Link>}
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Customer table */}

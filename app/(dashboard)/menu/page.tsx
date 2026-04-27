@@ -1,16 +1,36 @@
 import { Header } from "@/components/dashboard/header";
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { createClient } from "@/lib/supabase/server";
+import { canAccess, isSuperAdmin, type PlanTier } from "@/lib/plans";
+import { LockedFeature } from "@/components/billing/locked-feature";
 import { getMenuCategories, getMenuItems, getMenuPromotions, getOrders } from "@/lib/queries/menu";
-import { MenuItemsTab } from "@/components/menu/menu-items-tab";
-import { OrdersTab } from "@/components/menu/orders-tab";
-import { PromotionsTab } from "@/components/menu/promotions-tab";
 import { MenuPageTabs } from "@/components/menu/menu-page-tabs";
 
 export default async function MenuPage() {
   const restaurant = (await getCurrentRestaurant())!;
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
+  const superAdmin = isSuperAdmin(user?.email);
+
+  if (!superAdmin && !canAccess(tier, "menu")) {
+    return (
+      <>
+        <Header
+          title="Menu"
+          searchPlaceholder="Search customers..."
+          restaurantName={restaurant.name}
+          userEmail={user?.email}
+          restaurantId={restaurant.id}
+          logoUrl={restaurant.logo_url}
+        />
+        <div className="p-4 md:p-6">
+          <LockedFeature feature="Menu Management" requiredPlan="Basic" />
+        </div>
+      </>
+    );
+  }
 
   const [categories, items, promotions, orders] = await Promise.all([
     getMenuCategories(restaurant.id),
@@ -20,6 +40,7 @@ export default async function MenuPage() {
   ]);
 
   const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const canAccessAi = superAdmin || canAccess(tier, "ai_insights");
 
   return (
     <>
@@ -38,6 +59,7 @@ export default async function MenuPage() {
           initialItems={items}
           initialPromotions={promotions}
           pendingOrders={pendingOrders}
+          canAccessAi={canAccessAi}
         />
       </div>
     </>

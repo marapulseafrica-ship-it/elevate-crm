@@ -16,6 +16,7 @@ interface Props {
   restaurantName: string;
   templates: MessageTemplate[];
   segmentCounts: Record<string, number>;
+  campaignLimitReached?: boolean;
 }
 
 const audiences = [
@@ -46,7 +47,7 @@ function minDatetime(): string {
   return new Date(Date.now() + 60_000).toISOString().slice(0, 16);
 }
 
-export function CampaignBuilder({ restaurantId, restaurantName, templates, segmentCounts }: Props) {
+export function CampaignBuilder({ restaurantId, restaurantName, templates, segmentCounts, campaignLimitReached = false }: Props) {
   const router = useRouter();
   const [selectedAudience, setSelectedAudience] = useState<AudienceSegment>("all");
   const [selectedType, setSelectedType]         = useState<CampaignType>("promotion");
@@ -355,7 +356,7 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
           {/* Send Now */}
           <Button
             className="w-full"
-            disabled={saving || audienceCount === 0 || !campaignName.trim() || !messageBody.trim()}
+            disabled={saving || audienceCount === 0 || !campaignName.trim() || !messageBody.trim() || campaignLimitReached}
             onClick={() => handleSend("now")}
           >
             <Send className="w-4 h-4 mr-2" />
@@ -366,7 +367,7 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
             <Button
               variant="outline"
               className="w-full"
-              disabled={saving || !showSchedule || !scheduledAt || audienceCount === 0 || !campaignName.trim() || !messageBody.trim()}
+              disabled={saving || !showSchedule || !scheduledAt || audienceCount === 0 || !campaignName.trim() || !messageBody.trim() || campaignLimitReached}
               onClick={() => handleSend("later")}
             >
               <Clock className="w-4 h-4 mr-2" />

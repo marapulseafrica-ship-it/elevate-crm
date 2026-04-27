@@ -28,7 +28,10 @@ export interface Restaurant {
   country: string;
   timezone: string;
   logo_url: string | null;
-  subscription_tier: "starter" | "growth" | "pro";
+  subscription_tier: "starter" | "basic" | "pro" | "premium";
+  subscription_status: "trial" | "active" | "expired" | "cancelled";
+  subscription_expires_at: string | null;
+  is_super_admin: boolean;
   api_key: string;
   is_active: boolean;
   whatsapp_phone_number_id: string | null;
@@ -244,6 +247,20 @@ export interface OrderFeedback {
   comment: string | null;
   is_public: boolean;
   created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  restaurant_id: string;
+  plan: string;
+  amount_usd: number;
+  currency: string;
+  payment_method: string | null;
+  flw_tx_ref: string | null;
+  flw_tx_id: string | null;
+  status: "pending" | "completed" | "failed";
+  created_at: string;
+  completed_at: string | null;
 }
 
 export interface Branch {

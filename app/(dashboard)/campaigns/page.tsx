@@ -6,6 +6,7 @@ import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getCampaigns, getMessageTemplates, getCampaignStats } from "@/lib/queries/campaigns";
 import { getSegmentCounts } from "@/lib/queries/customers";
 import { createClient } from "@/lib/supabase/server";
+import { canAccess, isSuperAdmin, getPlanLimits, type PlanTier } from "@/lib/plans";
 import { Send, MessageSquare, TrendingUp, Activity } from "lucide-react";
 import { format, isPast, differenceInDays } from "date-fns";
 import { formatNumber } from "@/lib/utils";
@@ -17,12 +18,30 @@ export default async function CampaignsPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [campaigns, templates, segCounts, stats] = await Promise.all([
+  const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
+  const superAdmin = isSuperAdmin(user?.email);
+  const canAccessAiTiming = superAdmin || canAccess(tier, "ai_timing");
+  const planLimits = getPlanLimits(tier);
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const [campaigns, templates, segCounts, stats, monthCampaignsRes] = await Promise.all([
     getCampaigns(restaurant.id, 20),
     getMessageTemplates(restaurant.id),
     getSegmentCounts(restaurant.id),
     getCampaignStats(restaurant.id),
+    createClient()
+      .from("campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurant.id)
+      .in("status", ["completed", "sending", "scheduled"])
+      .gte("created_at", monthStart.toISOString()),
   ]);
+
+  const campaignsThisMonth = monthCampaignsRes.count ?? 0;
+  const campaignLimitReached = !superAdmin && planLimits.campaigns !== Infinity && campaignsThisMonth >= planLimits.campaigns;
 
   const audienceCounts = {
     all: segCounts.all,
@@ -93,7 +112,20 @@ export default async function CampaignsPage() {
         </div>
 
         {/* AI timing recommendation */}
-        <AiTimingCard />
+        {canAccessAiTiming && <AiTimingCard />}
+
+        {/* Campaign limit warning */}
+        {planLimits.campaigns !== Infinity && (
+          <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg border ${campaignLimitReached ? "bg-red-50 border-red-200 text-red-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+            <Activity className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {campaignLimitReached
+                ? `You've used all ${planLimits.campaigns} campaigns for this month. `
+                : `${campaignsThisMonth} / ${planLimits.campaigns} campaigns used this month. `}
+              {campaignLimitReached && <a href="/billing" className="font-semibold underline">Upgrade to send more</a>}
+            </span>
+          </div>
+        )}
 
         {/* Campaign builder */}
         <CampaignBuilder
@@ -101,6 +133,7 @@ export default async function CampaignsPage() {
           restaurantName={restaurant.name}
           templates={templates}
           segmentCounts={audienceCounts}
+          campaignLimitReached={campaignLimitReached}
         />
 
         {/* Campaign History */}

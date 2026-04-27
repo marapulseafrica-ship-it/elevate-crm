@@ -6,6 +6,7 @@ import { OrdersTab } from "./orders-tab";
 import { PromotionsTab } from "./promotions-tab";
 import { FeedbackTab } from "./feedback-tab";
 import { AiInsightsTab } from "./ai-insights-tab";
+import { LockedFeature } from "@/components/billing/locked-feature";
 import type { MenuCategory, MenuItem, MenuPromotion } from "@/types/database";
 
 interface Props {
@@ -14,9 +15,10 @@ interface Props {
   initialItems: MenuItem[];
   initialPromotions: MenuPromotion[];
   pendingOrders: number;
+  canAccessAi?: boolean;
 }
 
-export function MenuPageTabs({ restaurantId, initialCategories, initialItems, initialPromotions, pendingOrders }: Props) {
+export function MenuPageTabs({ restaurantId, initialCategories, initialItems, initialPromotions, pendingOrders, canAccessAi = true }: Props) {
   const [tab, setTab] = useState<"items" | "orders" | "promotions" | "feedback" | "ai">("items");
   const [pendingCount, setPendingCount] = useState(pendingOrders);
 
@@ -61,7 +63,11 @@ export function MenuPageTabs({ restaurantId, initialCategories, initialItems, in
         <PromotionsTab restaurantId={restaurantId} initialPromotions={initialPromotions} />
       )}
       {tab === "feedback" && <FeedbackTab restaurantId={restaurantId} />}
-      {tab === "ai" && <AiInsightsTab restaurantId={restaurantId} />}
+      {tab === "ai" && (
+        canAccessAi
+          ? <AiInsightsTab restaurantId={restaurantId} />
+          : <LockedFeature feature="AI Food Insights" requiredPlan="Pro" />
+      )}
     </div>
   );
 }
