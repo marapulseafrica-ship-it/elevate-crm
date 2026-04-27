@@ -21,6 +21,7 @@ interface Restaurant {
   whatsapp_phone_number_id: string;
   whatsapp_access_token: string;
   whatsapp_template_name: string;
+  notification_preferences: Record<string, boolean> | null;
 }
 
 async function sendWhatsAppMessage(
@@ -67,11 +68,62 @@ async function sendWhatsAppMessage(
   return data.messages?.[0]?.id ?? "";
 }
 
+// Sends to a batch of customers and bulk-inserts logs — one step per 500 customers
+// so 10,000 customers = 20 steps instead of 10,000 steps
+async function sendBatch(
+  customers: Customer[],
+  restaurant: Restaurant,
+  campaign: any,
+  campaignId: string
+): Promise<{ sent: number; failed: number }> {
+  const now = new Date().toISOString();
+  const customMessage = campaign.message_body.trim();
+
+  const results = await Promise.all(
+    customers.map(async (customer) => {
+      const renderedBody = campaign.message_body
+        .replace(/\{\{customer_name\}\}/g, customer.name)
+        .replace(/\{\{restaurant_name\}\}/g, restaurant.name);
+
+      let whatsappMessageId = "";
+      let status: "sent" | "failed" = "sent";
+      let errorMessage: string | null = null;
+
+      try {
+        whatsappMessageId = await sendWhatsAppMessage(customer, restaurant, customMessage);
+      } catch (err: any) {
+        status = "failed";
+        errorMessage = err.message ?? "Unknown error";
+      }
+
+      return {
+        campaign_id: campaignId,
+        customer_id: customer.id,
+        restaurant_id: campaign.restaurant_id,
+        phone_sent_to: customer.phone,
+        message_body: renderedBody,
+        status,
+        whatsapp_message_id: whatsappMessageId || null,
+        error_message: errorMessage,
+        sent_at: now,
+      };
+    })
+  );
+
+  // Bulk insert all logs for this batch in one query
+  await supabaseAdmin.from("campaign_logs").insert(results);
+
+  return {
+    sent: results.filter((r) => r.status === "sent").length,
+    failed: results.filter((r) => r.status === "failed").length,
+  };
+}
+
 export const sendCampaign = inngest.createFunction(
   {
     id: "send-campaign",
     retries: 2,
-    concurrency: { limit: 5 },
+    concurrency: { limit: 10 },
     triggers: [{ event: "campaign/send" }],
   },
   async ({ event, step }: { event: { data: { campaignId: string } }; step: any }) => {
@@ -107,7 +159,7 @@ export const sendCampaign = inngest.createFunction(
       return data as Restaurant;
     });
 
-    // 3. Get segment customers via RPC
+    // 3. Get segment customers
     const customers = await step.run("get-customers", async () => {
       const { data } = await supabaseAdmin.rpc("get_segment_customers", {
         p_restaurant_id: campaign.restaurant_id,
@@ -117,83 +169,50 @@ export const sendCampaign = inngest.createFunction(
     });
 
     if (customers.length === 0) {
-      await supabaseAdmin
-        .from("campaigns")
-        .update({
-          status: "completed",
-          sent_count: 0,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", campaignId);
+      await supabaseAdmin.from("campaigns").update({
+        status: "completed",
+        sent_count: 0,
+        completed_at: new Date().toISOString(),
+      }).eq("id", campaignId);
       return { sent: 0 };
     }
 
-    // 4. Fan-out: send to all customers in parallel (batched at 25 concurrent)
-    const BATCH = 25;
+    // 4. Send in batches of 500 — each batch = ONE step
+    // 10,000 customers = 20 steps (not 10,000 steps)
+    const BATCH_SIZE = 500;
     let totalSent = 0;
+    let totalFailed = 0;
 
-    for (let i = 0; i < customers.length; i += BATCH) {
-      const batch = customers.slice(i, i + BATCH);
+    for (let i = 0; i < customers.length; i += BATCH_SIZE) {
+      const batch = customers.slice(i, i + BATCH_SIZE);
+      const batchIndex = Math.floor(i / BATCH_SIZE) + 1;
 
-      await Promise.all(
-        batch.map((customer: Customer) =>
-          step.run(`send-${customer.id}`, async () => {
-            const now = new Date().toISOString();
-            const renderedBody = campaign.message_body
-              .replace(/\{\{customer_name\}\}/g, customer.name)
-              .replace(/\{\{restaurant_name\}\}/g, restaurant.name);
+      const result = await step.run(`send-batch-${batchIndex}`, async () => {
+        return sendBatch(batch, restaurant, campaign, campaignId);
+      });
 
-            // Use message_body directly as the custom {{3}} variable
-            const customMessage = campaign.message_body.trim();
-
-            let whatsappMessageId = "";
-            let status: "sent" | "failed" = "sent";
-            let errorMessage: string | null = null;
-
-            try {
-              whatsappMessageId = await sendWhatsAppMessage(customer, restaurant, customMessage);
-            } catch (err: any) {
-              status = "failed";
-              errorMessage = err.message ?? "Unknown error";
-            }
-
-            await supabaseAdmin.from("campaign_logs").insert({
-              campaign_id: campaignId,
-              customer_id: customer.id,
-              restaurant_id: campaign.restaurant_id,
-              phone_sent_to: customer.phone,
-              message_body: renderedBody,
-              status,
-              whatsapp_message_id: whatsappMessageId || null,
-              error_message: errorMessage,
-              sent_at: now,
-            });
-
-            return { status, whatsappMessageId };
-          })
-        )
-      );
-
-      totalSent += batch.length;
+      totalSent += result.sent;
+      totalFailed += result.failed;
     }
 
     // 5. Mark campaign completed
     await step.run("complete-campaign", async () => {
       await supabaseAdmin.from("campaigns").update({
         status: "completed",
-        sent_count: customers.length,
+        sent_count: totalSent,
+        failed_count: totalFailed,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", campaignId);
     });
 
-    // 6. Insert in-app notification + email
+    // 6. Notification + email
     await step.run("create-notification", async () => {
       await supabaseAdmin.from("notifications").insert({
         restaurant_id: campaign.restaurant_id,
         type: "campaign_completed",
         title: "Campaign Sent ✓",
-        body: `${campaign.name} was sent to ${customers.length} customers.`,
+        body: `${campaign.name} was sent to ${totalSent} customers${totalFailed > 0 ? ` (${totalFailed} failed)` : ""}.`,
         is_read: false,
       });
 
@@ -203,17 +222,17 @@ export const sendCampaign = inngest.createFunction(
         const { count: deliveredCount } = await supabaseAdmin
           .from("campaign_logs")
           .select("*", { count: "exact", head: true })
-          .eq("campaign_id", campaign.id)
+          .eq("campaign_id", campaignId)
           .eq("status", "delivered");
 
         await sendEmail(
           restaurant.email,
-          `✓ Campaign sent — "${campaign.name}" reached ${customers.length} customers`,
+          `✓ Campaign sent — "${campaign.name}" reached ${totalSent} customers`,
           campaignCompletedEmail({
             restaurantName: restaurant.name,
             campaignName: campaign.name,
             audienceSegment: campaign.audience_segment,
-            sentCount: customers.length,
+            sentCount: totalSent,
             deliveredCount: deliveredCount ?? 0,
             completedAt: new Date().toLocaleString("en-GB", { timeZone: "Africa/Lusaka" }),
             dashboardUrl: `${BASE_URL}/campaigns`,
@@ -223,7 +242,7 @@ export const sendCampaign = inngest.createFunction(
       }
     });
 
-    // 7. Fire event for AI promo extraction
+    // 7. Fire event for promo extraction
     await step.sendEvent("trigger-promo-extraction", {
       name: "campaign/completed",
       data: {
@@ -236,6 +255,6 @@ export const sendCampaign = inngest.createFunction(
       },
     });
 
-    return { sent: totalSent, campaignId };
+    return { sent: totalSent, failed: totalFailed, campaignId };
   }
 );
