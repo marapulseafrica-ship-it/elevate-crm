@@ -9,6 +9,7 @@ const supabaseAdmin = createClient(
 );
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
+const ADMIN_URL = process.env.ADMIN_DASHBOARD_URL ?? "https://elevate-admin.vercel.app";
 const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
 const ZMW_RATE = Number(process.env.NEXT_PUBLIC_ZMW_PER_USD ?? 27);
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
           <tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Reference</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;font-family:monospace;">${reference}</td></tr>
           <tr><td style="padding:8px 0;color:#64748b;">Customer TX ID</td><td style="padding:8px 0;font-weight:600;text-align:right;font-family:monospace;">${customerTxId}</td></tr>
         </table>
-        <a href="${BASE_URL}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f97316;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Review &amp; Approve →</a>
+        <a href="${ADMIN_URL}/payments" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Review &amp; Approve →</a>
       </div>`
     ).catch(console.error);
   }
