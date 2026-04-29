@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { PLANS, getMonthsForPlan, type PlanTier } from "@/lib/plans";
+import { sendEmail } from "@/lib/email";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,12 +9,14 @@ const supabaseAdmin = createClient(
 );
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
+const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
+const ZMW_RATE = Number(process.env.NEXT_PUBLIC_ZMW_PER_USD ?? 27);
 
 export async function POST(req: NextRequest) {
-  const { plan, restaurantId, customerEmail, customerName } = await req.json();
+  const { plan, restaurantId, customerTxId, renewalPhone, consentGiven, amountZmw } = await req.json();
 
-  if (!plan || !restaurantId) {
-    return NextResponse.json({ error: "plan and restaurantId required" }, { status: 400 });
+  if (!plan || !restaurantId || !customerTxId) {
+    return NextResponse.json({ error: "plan, restaurantId, and customerTxId are required" }, { status: 400 });
   }
 
   const planConfig = PLANS[plan as PlanTier];
@@ -21,50 +24,57 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
-  // Create a unique tx_ref
-  const txRef = `elev-${restaurantId.slice(0, 8)}-${Date.now()}`;
+  const reference = `ELEV-${restaurantId.slice(0, 8).toUpperCase()}`;
+  const priceUsd = parseFloat(planConfig.price.replace("$", ""));
+  const zmwAmount = amountZmw ?? priceUsd * ZMW_RATE;
+
+  // Get restaurant details for the email
+  const { data: restaurant } = await supabaseAdmin
+    .from("restaurants")
+    .select("name, email")
+    .eq("id", restaurantId)
+    .single();
 
   // Insert pending payment record
-  await supabaseAdmin.from("payments").insert({
+  const { data: payment, error } = await supabaseAdmin.from("payments").insert({
     restaurant_id: restaurantId,
     plan,
-    amount_usd: parseFloat(planConfig.price.replace("$", "")),
-    currency: "USD",
-    flw_tx_ref: txRef,
+    amount_usd: priceUsd,
+    amount_zmw: zmwAmount,
+    currency: "ZMW",
+    payment_method: "mobilemoney_airtel",
+    flw_tx_ref: `${reference}-${Date.now()}`,
+    customer_tx_id: customerTxId,
+    renewal_phone: renewalPhone ?? null,
+    auto_renew: !!(renewalPhone && consentGiven),
+    consent_given_at: consentGiven ? new Date().toISOString() : null,
     status: "pending",
-  });
+  }).select("id").single();
 
-  // Build Flutterwave hosted payment link
-  const flwRes = await fetch("https://api.flutterwave.com/v3/payments", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      tx_ref: txRef,
-      amount: parseFloat(planConfig.price.replace("$", "")),
-      currency: "USD",
-      redirect_url: `${BASE_URL}/api/payments/verify?tx_ref=${txRef}`,
-      customer: {
-        email: customerEmail ?? "customer@elevatecrm.com",
-        name: customerName ?? "Restaurant Owner",
-      },
-      payment_options: "card,mobilemoneyghana,mobilemoneyzambia",
-      customizations: {
-        title: "Elevate CRM",
-        description: `${planConfig.label} Plan — ${planConfig.priceNote}`,
-        logo: `${BASE_URL}/logo.png`,
-      },
-      meta: { restaurantId, plan },
-    }),
-  });
-
-  const flwData = await flwRes.json();
-
-  if (!flwRes.ok || flwData.status !== "success") {
-    return NextResponse.json({ error: flwData.message ?? "Payment initiation failed" }, { status: 500 });
+  if (error) {
+    console.error("Payment insert error:", error);
+    return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
   }
 
-  return NextResponse.json({ paymentUrl: flwData.data.link });
+  // Email super admin
+  if (SUPER_ADMIN_EMAIL) {
+    await sendEmail(
+      SUPER_ADMIN_EMAIL,
+      `New payment request — ${restaurant?.name ?? restaurantId}`,
+      `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px 16px;">
+        <h2 style="color:#1e293b;margin-bottom:4px;">New Payment Request</h2>
+        <p style="color:#64748b;font-size:13px;margin-bottom:20px;">Requires your approval</p>
+        <table style="width:100%;font-size:14px;border-collapse:collapse;">
+          <tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Restaurant</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">${restaurant?.name ?? restaurantId}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Plan</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;text-transform:capitalize;">${planConfig.label} — ${planConfig.price} ${planConfig.priceNote}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Amount (ZMW)</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;">ZMW ${zmwAmount.toFixed(2)}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;border-bottom:1px solid #f1f5f9;">Reference</td><td style="padding:8px 0;font-weight:600;text-align:right;border-bottom:1px solid #f1f5f9;font-family:monospace;">${reference}</td></tr>
+          <tr><td style="padding:8px 0;color:#64748b;">Customer TX ID</td><td style="padding:8px 0;font-weight:600;text-align:right;font-family:monospace;">${customerTxId}</td></tr>
+        </table>
+        <a href="${BASE_URL}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f97316;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Review &amp; Approve →</a>
+      </div>`
+    ).catch(console.error);
+  }
+
+  return NextResponse.json({ success: true, reference, paymentId: payment.id });
 }

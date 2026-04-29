@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X, UtensilsCrossed, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X, UtensilsCrossed, CreditCard, ShieldCheck } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 
 const navigation = [
@@ -17,7 +17,11 @@ const navigation = [
   { name: "Help Center", href: "/help", icon: HelpCircle },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isSuperAdmin?: boolean;
+}
+
+export function Sidebar({ isSuperAdmin = false }: SidebarProps) {
   const pathname = usePathname();
   const { open, setOpen } = useSidebar();
 
@@ -61,6 +65,24 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {isSuperAdmin && (
+        <div className="px-3 pb-1">
+          <Link
+            href="/admin"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname.startsWith("/admin")
+                ? "bg-purple-600 text-white shadow-sm"
+                : "text-purple-700 hover:bg-purple-50 border border-purple-200"
+            )}
+          >
+            <ShieldCheck className="w-5 h-5" />
+            Admin
+          </Link>
+        </div>
+      )}
 
       <div className="p-3 space-y-2 border-t bg-white/40">
         <Link

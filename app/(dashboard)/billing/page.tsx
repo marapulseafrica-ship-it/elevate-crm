@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { PlanCard } from "@/components/billing/plan-card";
 import { PLANS, isSuperAdmin, type PlanTier } from "@/lib/plans";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { format } from "date-fns";
 import type { Payment } from "@/types/database";
 
@@ -14,11 +14,7 @@ const supabaseAdmin = createAdmin(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-interface PageProps {
-  searchParams: { success?: string; error?: string; plan?: string };
-}
-
-export default async function BillingPage({ searchParams }: PageProps) {
+export default async function BillingPage() {
   const restaurant = (await getCurrentRestaurant())!;
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,13 +23,24 @@ export default async function BillingPage({ searchParams }: PageProps) {
   const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
   const isExpired = !superAdmin && restaurant.subscription_status === "expired";
 
-  const { data: payments } = await supabaseAdmin
-    .from("payments")
-    .select("*")
-    .eq("restaurant_id", restaurant.id)
-    .eq("status", "completed")
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const [{ data: payments }, { data: pendingPayments }] = await Promise.all([
+    supabaseAdmin
+      .from("payments")
+      .select("*")
+      .eq("restaurant_id", restaurant.id)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabaseAdmin
+      .from("payments")
+      .select("*")
+      .eq("restaurant_id", restaurant.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  const pendingPayment = pendingPayments?.[0] ?? null;
 
   return (
     <>
@@ -48,25 +55,21 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
       <div className="p-4 md:p-6 space-y-6">
 
-        {/* Success / error toasts */}
-        {searchParams.success && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
-            <CheckCircle2 className="w-4 h-4" />
-            Payment confirmed! Your <span className="font-semibold capitalize">{searchParams.plan}</span> plan is now active.
-          </div>
-        )}
-        {searchParams.error && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-            <AlertCircle className="w-4 h-4" />
-            {searchParams.error === "cancelled" ? "Payment was cancelled." : "Payment failed. Please try again."}
-          </div>
-        )}
-
         {/* Super admin badge */}
         {superAdmin && (
           <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 text-purple-700 text-sm px-4 py-3 rounded-lg">
             <CheckCircle2 className="w-4 h-4" />
             Super admin account — full access to all features, no billing required.
+          </div>
+        )}
+
+        {/* Pending payment notice */}
+        {pendingPayment && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm px-4 py-3 rounded-lg">
+            <Clock className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Your payment for the <span className="font-semibold capitalize">{pendingPayment.plan}</span> plan is pending approval — submitted {format(new Date(pendingPayment.created_at), "d MMM 'at' HH:mm")}. We'll activate your plan within a few hours.
+            </span>
           </div>
         )}
 
@@ -113,7 +116,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
               ))}
             </div>
             <p className="text-xs text-slate-400 mt-4 text-center">
-              Payments processed securely via Flutterwave · Supports Airtel Money, MTN Zambia &amp; card
+              Payments processed via Airtel Money · Reference your restaurant ID when sending
             </p>
           </div>
         )}
@@ -141,9 +144,11 @@ export default async function BillingPage({ searchParams }: PageProps) {
                         {p.completed_at ? format(new Date(p.completed_at), "d MMM yyyy") : "—"}
                       </td>
                       <td className="px-6 py-4 text-sm font-medium capitalize">{p.plan}</td>
-                      <td className="px-6 py-4 text-sm">${p.amount_usd}</td>
+                      <td className="px-6 py-4 text-sm">
+                        {(p as any).amount_zmw ? `ZMW ${Number((p as any).amount_zmw).toFixed(2)}` : `$${p.amount_usd}`}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-600 capitalize">
-                        {p.payment_method?.replace(/_/g, " ") ?? "Card"}
+                        {p.payment_method?.replace(/_/g, " ") ?? "Airtel Money"}
                       </td>
                     </tr>
                   ))}

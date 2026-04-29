@@ -65,7 +65,7 @@ WHERE slug = 'pizza-palace';`}
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-slate-50">
-        <Sidebar />
+        <Sidebar isSuperAdmin={superAdmin} />
         <div className="flex-1 min-w-0 overflow-x-hidden flex flex-col">
           <UpgradeBanner isExpired={isExpired} tier={restaurant.subscription_tier} />
           <main className="flex-1">{children}</main>
