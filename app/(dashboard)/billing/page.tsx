@@ -21,7 +21,7 @@ export default async function BillingPage() {
 
   const superAdmin = isSuperAdmin(user?.email);
   const tier = (restaurant.subscription_tier ?? "starter") as PlanTier;
-  const isExpired = !superAdmin && restaurant.subscription_status === "expired";
+  const isExpired = !superAdmin && (restaurant.subscription_status === "expired" || restaurant.subscription_status === "cancelled");
 
   const [{ data: payments }, { data: pendingPayments }] = await Promise.all([
     supabaseAdmin

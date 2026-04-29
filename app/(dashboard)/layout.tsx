@@ -60,14 +60,14 @@ WHERE slug = 'pizza-palace';`}
   }
  
   const superAdmin = isSuperAdmin(user.email);
-  const isExpired = !superAdmin && restaurant.subscription_status === "expired";
+  const isExpired = !superAdmin && (restaurant.subscription_status === "expired" || restaurant.subscription_status === "cancelled");
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar isSuperAdmin={superAdmin} />
         <div className="flex-1 min-w-0 overflow-x-hidden flex flex-col">
-          <UpgradeBanner isExpired={isExpired} tier={restaurant.subscription_tier} />
+          <UpgradeBanner isExpired={isExpired} tier={restaurant.subscription_tier} status={restaurant.subscription_status} />
           <main className="flex-1">{children}</main>
         </div>
       </div>
