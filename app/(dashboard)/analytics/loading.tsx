@@ -26,7 +26,9 @@ export default function AnalyticsLoading() {
         </div>
         <div className="lg:col-span-2 bg-white rounded-xl border p-6 space-y-4">
           <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-48 w-full rounded-full mx-auto" style={{ maxWidth: 200 }} />
+          <div className="flex justify-center">
+            <Skeleton className="h-48 w-48 rounded-full" />
+          </div>
         </div>
       </div>
       {/* Table */}
