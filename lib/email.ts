@@ -5,7 +5,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     await resend.emails.send({
-      from: "Elevate CRM <onboarding@resend.dev>",
+      from: "Elevate CRM <support@elevateaisolutionsagency.com>",
       to,
       subject,
       html,
