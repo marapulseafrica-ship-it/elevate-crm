@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://elevate-crm-gamma.vercel.app";
 const ADMIN_URL = process.env.ADMIN_DASHBOARD_URL ?? "https://elevate-admin.vercel.app";
-const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
+const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "elevatealsolutionsagency@gmail.com";
 const ZMW_RATE = Number(process.env.NEXT_PUBLIC_ZMW_PER_USD ?? 27);
 
 export async function POST(req: NextRequest) {
