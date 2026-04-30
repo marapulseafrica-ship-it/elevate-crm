@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { UpgradeBanner } from "@/components/billing/upgrade-banner";
 import { isSuperAdmin } from "@/lib/plans";
+import { SubscriptionNotifier } from "@/components/realtime/subscription-notifier";
  
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -71,6 +72,10 @@ WHERE slug = 'pizza-palace';`}
           <main className="flex-1">{children}</main>
         </div>
       </div>
+      <SubscriptionNotifier
+        restaurantId={restaurant.id}
+        initialStatus={restaurant.subscription_status ?? "trial"}
+      />
     </SidebarProvider>
   );
 }
