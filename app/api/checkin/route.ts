@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve restaurant by api_key
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant, error: restaurantErr } = await supabaseAdmin
     .from("restaurants")
     .select("id, name, email, slug, latitude, longitude, checkin_location_enabled, notification_preferences")
     .eq("api_key", api_key)
@@ -52,7 +52,10 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (!restaurant) {
-    return NextResponse.json({ success: false, error: "Invalid API key" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: restaurantErr?.message ?? "Invalid API key" },
+      { status: 401 }
+    );
   }
 
   const prefs = (restaurant.notification_preferences ?? {}) as Record<string, boolean>;
@@ -126,7 +129,7 @@ export async function POST(req: NextRequest) {
 
   if (upsertErr || !customers?.length) {
     return NextResponse.json(
-      { success: false, error: "Could not save customer" },
+      { success: false, error: upsertErr?.message ?? "Could not save customer — no row returned" },
       { status: 500 }
     );
   }
