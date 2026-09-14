@@ -109,17 +109,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Upsert customer — never overwrite name/notes for existing customers
   const isExisting = !!existingCustomer;
   const upsertPayload: Record<string, any> = {
     restaurant_id: restaurant.id,
     phone: normalisedPhone,
+    name: name.trim(),
     opted_in_whatsapp: true,
   };
-  if (!isExisting) {
-    upsertPayload.name = name.trim();
-    upsertPayload.notes = notes?.trim() || null;
-  }
+  if (!isExisting && notes?.trim()) upsertPayload.notes = notes.trim();
   if (email?.trim()) upsertPayload.email = email.trim();
 
   const { data: customers, error: upsertErr } = await supabaseAdmin
