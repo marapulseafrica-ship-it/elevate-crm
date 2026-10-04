@@ -69,11 +69,11 @@ export function Sidebar({ isSuperAdmin = false }: SidebarProps) {
       {isSuperAdmin && (
         <div className="px-3 pb-1 space-y-1">
           <Link
-            href="/sales-agents"
+            href="/admin/sales-agents"
             onClick={() => setOpen(false)}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              pathname.startsWith("/sales-agents")
+              pathname.startsWith("/admin/sales-agents")
                 ? "bg-purple-600 text-white shadow-sm"
                 : "text-purple-700 hover:bg-purple-50 border border-purple-200"
             )}
