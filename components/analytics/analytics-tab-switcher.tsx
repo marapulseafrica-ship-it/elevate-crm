@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
-import type { RevenueBySegment } from "@/lib/queries/analytics";
+import type { RevenueBySegment, RevenueSourceBreakdown } from "@/lib/queries/analytics";
 import { RevenueCharts } from "./revenue-charts";
 import { PromoRoiTab } from "./promo-roi-tab";
 
@@ -12,6 +12,7 @@ interface Props {
   campaigns: any[];
   segmentCounts: { new: number; returning: number; loyal: number; inactive: number };
   revenue: RevenueBySegment;
+  revenueSource?: RevenueSourceBreakdown;
   bestCampaign: any | null;
   analyticsChartsSlot: React.ReactNode;
   trafficSourcesSlot: React.ReactNode;
@@ -35,7 +36,7 @@ function LockedTab({ feature }: { feature: string }) {
   );
 }
 
-export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, bestCampaign, analyticsChartsSlot, trafficSourcesSlot, restaurantId, canAccessRevenue = true, canAccessPromoRoi = true }: Props) {
+export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, revenueSource, bestCampaign, analyticsChartsSlot, trafficSourcesSlot, restaurantId, canAccessRevenue = true, canAccessPromoRoi = true }: Props) {
   const [tab, setTab] = useState<"traffic" | "campaigns" | "revenue" | "promotions">("traffic");
 
   return (
@@ -71,7 +72,7 @@ export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, bestCa
 
       {tab === "traffic" && trafficSourcesSlot}
       {tab === "campaigns" && analyticsChartsSlot}
-      {tab === "revenue" && (canAccessRevenue ? <RevenueCharts revenue={revenue} /> : <LockedTab feature="Revenue & Spending" />)}
+      {tab === "revenue" && (canAccessRevenue ? <RevenueCharts revenue={revenue} revenueSource={revenueSource} /> : <LockedTab feature="Revenue & Spending" />)}
       {tab === "promotions" && (canAccessPromoRoi ? <PromoRoiTab restaurantId={restaurantId} /> : <LockedTab feature="Promo ROI" />)}
     </div>
   );

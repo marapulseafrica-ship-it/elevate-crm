@@ -2,15 +2,16 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Card } from "@/components/ui/card";
-import type { RevenueBySegment } from "@/lib/queries/analytics";
+import type { RevenueBySegment, RevenueSourceBreakdown } from "@/lib/queries/analytics";
 
 interface Props {
   revenue: RevenueBySegment;
+  revenueSource?: RevenueSourceBreakdown;
 }
 
 const COLORS = { new: "#3b82f6", returning: "#f59e0b", loyal: "#10b981" };
 
-export function RevenueCharts({ revenue }: Props) {
+export function RevenueCharts({ revenue, revenueSource }: Props) {
   const total = revenue.total;
 
   const barData = [
@@ -21,8 +22,56 @@ export function RevenueCharts({ revenue }: Props) {
 
   const pct = (val: number) => total > 0 ? ((val / total) * 100).toFixed(0) : "0";
 
+  const rs = revenueSource;
+  const grandRev = rs ? Number(rs.total_revenue) : 0;
+  const campRev  = rs ? Number(rs.campaign_revenue) : 0;
+  const orgRev   = rs ? Number(rs.organic_revenue) : 0;
+  const pct = (n: number) => grandRev > 0 ? `${Math.round((n / grandRev) * 100)}%` : "0%";
+
   return (
     <div className="space-y-5">
+      {/* Campaign vs Organic revenue split */}
+      {rs && (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Revenue Source — All Time</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-5 bg-white text-center">
+              <p className="text-2xl font-bold text-slate-800">ZMW {grandRev.toFixed(0)}</p>
+              <p className="text-xs text-slate-500 mt-1">Total Revenue</p>
+            </Card>
+            <Card className="p-5 bg-white text-center border-emerald-200">
+              <p className="text-2xl font-bold text-emerald-600">ZMW {campRev.toFixed(0)}</p>
+              <p className="text-xs text-emerald-600 mt-1">Campaign-driven · {pct(campRev)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">This month: ZMW {Number(rs.month_campaign_revenue).toFixed(0)}</p>
+            </Card>
+            <Card className="p-5 bg-white text-center border-blue-200">
+              <p className="text-2xl font-bold text-blue-600">ZMW {orgRev.toFixed(0)}</p>
+              <p className="text-xs text-blue-600 mt-1">Organic · {pct(orgRev)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">This month: ZMW {Number(rs.month_organic_revenue).toFixed(0)}</p>
+            </Card>
+          </div>
+          {/* Progress bar showing split */}
+          {grandRev > 0 && (
+            <div className="mt-3 flex rounded-full overflow-hidden h-3">
+              <div
+                className="bg-emerald-500 transition-all"
+                style={{ width: pct(campRev) }}
+                title={`Campaign: ZMW ${campRev.toFixed(0)}`}
+              />
+              <div
+                className="bg-blue-400 transition-all"
+                style={{ width: pct(orgRev) }}
+                title={`Organic: ZMW ${orgRev.toFixed(0)}`}
+              />
+            </div>
+          )}
+          <div className="flex gap-4 mt-1.5">
+            <span className="text-xs flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Campaign</span>
+            <span className="text-xs flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> Organic</span>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="p-4 bg-white text-center">

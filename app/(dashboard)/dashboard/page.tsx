@@ -145,7 +145,7 @@ export default async function DashboardPage() {
             <Link href="/analytics" className="text-xs text-primary font-medium hover:underline">Full breakdown →</Link>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
             <div className="p-3 rounded-lg bg-slate-50 text-center">
               <div className="text-2xl font-bold text-slate-800">{todayBreakdown.total}</div>
               <div className="text-xs text-slate-500 mt-0.5">Total Visits</div>
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
             <div className="p-3 rounded-lg bg-emerald-50 text-center">
               <div className="text-2xl font-bold text-emerald-700">{todayBreakdown.campaign_driven}</div>
               <div className="text-xs text-emerald-600 mt-0.5">
-                From Campaign{todayBreakdown.total > 0 ? ` · ${Math.round((todayBreakdown.campaign_driven / todayBreakdown.total) * 100)}%` : ""}
+                Campaign{todayBreakdown.total > 0 ? ` · ${Math.round((todayBreakdown.campaign_driven / todayBreakdown.total) * 100)}%` : ""}
               </div>
             </div>
             <div className="p-3 rounded-lg bg-blue-50 text-center">
@@ -163,6 +163,20 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Today's revenue split */}
+          {(todayBreakdown.campaign_revenue + todayBreakdown.organic_revenue) > 0 && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-emerald-50 text-center">
+                <div className="text-lg font-bold text-emerald-700">ZMW {Number(todayBreakdown.campaign_revenue).toFixed(2)}</div>
+                <div className="text-xs text-emerald-600 mt-0.5">Campaign Revenue Today</div>
+              </div>
+              <div className="p-3 rounded-lg bg-blue-50 text-center">
+                <div className="text-lg font-bold text-blue-700">ZMW {Number(todayBreakdown.organic_revenue).toFixed(2)}</div>
+                <div className="text-xs text-blue-600 mt-0.5">Organic Revenue Today</div>
+              </div>
+            </div>
+          )}
 
           {todayBreakdown.campaign_customers.length > 0 ? (
             <div>

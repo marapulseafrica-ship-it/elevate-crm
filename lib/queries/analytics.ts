@@ -80,6 +80,8 @@ export interface TodayVisitBreakdown {
   total: number;
   campaign_driven: number;
   organic: number;
+  campaign_revenue: number;
+  organic_revenue: number;
   campaign_customers: CampaignCustomerToday[];
 }
 
@@ -95,6 +97,23 @@ export interface VisitSourceDay {
   campaign_driven: number;
   organic: number;
   total: number;
+  campaign_revenue: number;
+  organic_revenue: number;
+}
+
+export interface RevenueSourceBreakdown {
+  total_revenue: number;
+  campaign_revenue: number;
+  organic_revenue: number;
+  month_campaign_revenue: number;
+  month_organic_revenue: number;
+}
+
+export async function getRevenueSourceBreakdown(restaurantId: string): Promise<RevenueSourceBreakdown> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_revenue_source_breakdown", { p_restaurant_id: restaurantId });
+  if (error || !data) return { total_revenue: 0, campaign_revenue: 0, organic_revenue: 0, month_campaign_revenue: 0, month_organic_revenue: 0 };
+  return data as RevenueSourceBreakdown;
 }
 
 export async function getVisitSourceTrend(restaurantId: string, days = 30): Promise<VisitSourceDay[]> {

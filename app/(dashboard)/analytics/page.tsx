@@ -7,7 +7,7 @@ import { AnalyticsTabSwitcher } from "@/components/analytics/analytics-tab-switc
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getCampaignPerformance, getCampaignStats } from "@/lib/queries/campaigns";
 import { getSegmentCounts } from "@/lib/queries/customers";
-import { getRevenueBySegment, getTodayVisitBreakdown, getVisitSourceTrend } from "@/lib/queries/analytics";
+import { getRevenueBySegment, getTodayVisitBreakdown, getVisitSourceTrend, getRevenueSourceBreakdown } from "@/lib/queries/analytics";
 import { TrafficSourceChart } from "@/components/analytics/traffic-source-chart";
 import { createClient } from "@/lib/supabase/server";
 import { canAccess, isSuperAdmin, type PlanTier } from "@/lib/plans";
@@ -25,13 +25,14 @@ export default async function AnalyticsPage() {
   const canAccessRevenue = superAdmin || canAccess(tier, "revenue_analytics");
   const canAccessPromoRoi = superAdmin || canAccess(tier, "promo_roi");
 
-  const [campaigns, stats, segCounts, revenue, todayBreakdown, sourceTrend] = await Promise.all([
+  const [campaigns, stats, segCounts, revenue, todayBreakdown, sourceTrend, revenueSource] = await Promise.all([
     getCampaignPerformance(restaurant.id, 20),
     getCampaignStats(restaurant.id),
     getSegmentCounts(restaurant.id),
     getRevenueBySegment(restaurant.id),
     getTodayVisitBreakdown(restaurant.id),
     getVisitSourceTrend(restaurant.id, 30),
+    getRevenueSourceBreakdown(restaurant.id),
   ]);
 
   const bestCampaign = campaigns.length > 0
@@ -85,6 +86,7 @@ export default async function AnalyticsPage() {
           segmentCounts={{ new: segCounts.new, returning: segCounts.returning, loyal: segCounts.loyal, inactive: segCounts.inactive }}
           revenue={revenue}
           bestCampaign={bestCampaign}
+          revenueSource={revenueSource}
           restaurantId={restaurant.id}
           canAccessRevenue={canAccessRevenue}
           canAccessPromoRoi={canAccessPromoRoi}
@@ -95,6 +97,8 @@ export default async function AnalyticsPage() {
               todayTotal={todayBreakdown.total}
               todayCampaign={todayBreakdown.campaign_driven}
               todayOrganic={todayBreakdown.organic}
+              todayCampaignRevenue={todayBreakdown.campaign_revenue}
+              todayOrganicRevenue={todayBreakdown.organic_revenue}
             />
           }
           analyticsChartsSlot={
