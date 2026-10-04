@@ -20,13 +20,13 @@ export function RevenueCharts({ revenue, revenueSource }: Props) {
     { name: "Loyal", value: revenue.loyal, avg: revenue.avg_loyal, count: revenue.count_loyal, color: COLORS.loyal },
   ];
 
-  const pct = (val: number) => total > 0 ? ((val / total) * 100).toFixed(0) : "0";
+  const segPct = (val: number) => total > 0 ? ((val / total) * 100).toFixed(0) : "0";
 
   const rs = revenueSource;
   const grandRev = rs ? Number(rs.total_revenue) : 0;
   const campRev  = rs ? Number(rs.campaign_revenue) : 0;
   const orgRev   = rs ? Number(rs.organic_revenue) : 0;
-  const pct = (n: number) => grandRev > 0 ? `${Math.round((n / grandRev) * 100)}%` : "0%";
+  const srcPct = (n: number) => grandRev > 0 ? `${Math.round((n / grandRev) * 100)}%` : "0%";
 
   return (
     <div className="space-y-5">
@@ -41,12 +41,12 @@ export function RevenueCharts({ revenue, revenueSource }: Props) {
             </Card>
             <Card className="p-5 bg-white text-center border-emerald-200">
               <p className="text-2xl font-bold text-emerald-600">ZMW {campRev.toFixed(0)}</p>
-              <p className="text-xs text-emerald-600 mt-1">Campaign-driven · {pct(campRev)}</p>
+              <p className="text-xs text-emerald-600 mt-1">Campaign-driven · {srcPct(campRev)}</p>
               <p className="text-xs text-slate-400 mt-0.5">This month: ZMW {Number(rs.month_campaign_revenue).toFixed(0)}</p>
             </Card>
             <Card className="p-5 bg-white text-center border-blue-200">
               <p className="text-2xl font-bold text-blue-600">ZMW {orgRev.toFixed(0)}</p>
-              <p className="text-xs text-blue-600 mt-1">Organic · {pct(orgRev)}</p>
+              <p className="text-xs text-blue-600 mt-1">Organic · {srcPct(orgRev)}</p>
               <p className="text-xs text-slate-400 mt-0.5">This month: ZMW {Number(rs.month_organic_revenue).toFixed(0)}</p>
             </Card>
           </div>
@@ -55,12 +55,12 @@ export function RevenueCharts({ revenue, revenueSource }: Props) {
             <div className="mt-3 flex rounded-full overflow-hidden h-3">
               <div
                 className="bg-emerald-500 transition-all"
-                style={{ width: pct(campRev) }}
+                style={{ width: srcPct(campRev) }}
                 title={`Campaign: ZMW ${campRev.toFixed(0)}`}
               />
               <div
                 className="bg-blue-400 transition-all"
-                style={{ width: pct(orgRev) }}
+                style={{ width: srcPct(orgRev) }}
                 title={`Organic: ZMW ${orgRev.toFixed(0)}`}
               />
             </div>
@@ -82,7 +82,7 @@ export function RevenueCharts({ revenue, revenueSource }: Props) {
           <Card key={seg.name} className="p-4 bg-white text-center">
             <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ backgroundColor: seg.color }} />
             <p className="text-2xl font-bold text-slate-900">ZMW {seg.value.toFixed(0)}</p>
-            <p className="text-xs text-slate-500">{seg.name} ({pct(seg.value)}%)</p>
+            <p className="text-xs text-slate-500">{seg.name} ({segPct(seg.value)}%)</p>
           </Card>
         ))}
       </div>

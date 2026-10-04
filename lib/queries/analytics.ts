@@ -88,7 +88,7 @@ export interface TodayVisitBreakdown {
 export async function getTodayVisitBreakdown(restaurantId: string): Promise<TodayVisitBreakdown> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_today_visit_breakdown", { p_restaurant_id: restaurantId });
-  if (error || !data) return { total: 0, campaign_driven: 0, organic: 0, campaign_customers: [] };
+  if (error || !data) return { total: 0, campaign_driven: 0, organic: 0, campaign_revenue: 0, organic_revenue: 0, campaign_customers: [] };
   return data as TodayVisitBreakdown;
 }
 
