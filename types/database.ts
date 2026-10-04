@@ -273,3 +273,145 @@ export interface Branch {
   is_active: boolean;
   created_at: string;
 }
+
+// ── Sales Agent system ────────────────────────────────────────────────────────
+
+export type AgentLeadStatus = "pending" | "contacted" | "interested" | "free_trial" | "activated" | "lost";
+export type AgentCallOutcome = "interested" | "not_interested" | "callback" | "free_trial" | "no_answer" | "other";
+export type AgentCallType = "phone" | "whatsapp" | "in_person";
+export type AgentPayoutStatus = "pending" | "approved" | "paid";
+
+export interface SalesAgent {
+  id: string;
+  user_id: string | null;
+  full_name: string;
+  nrc_number: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  is_active: boolean;
+  contract_signed_at: string | null;
+  payment_method: "airtel_money" | "mtn_momo" | "bank_transfer" | null;
+  payment_details: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentLead {
+  id: string;
+  agent_id: string;
+  month: string;  // ISO date string, first day of month
+  restaurant_name: string;
+  location: string | null;
+  phone: string | null;
+  contact_person: string | null;
+  status: AgentLeadStatus;
+  qualified_calls: number;
+  last_call_at: string | null;
+  notes: string | null;
+  claimed_at: string;
+  converted_restaurant_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentCall {
+  id: string;
+  lead_id: string;
+  agent_id: string;
+  call_date: string;
+  call_type: AgentCallType;
+  outcome: AgentCallOutcome;
+  notes: string | null;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface AgentConversion {
+  id: string;
+  lead_id: string | null;
+  agent_id: string;
+  restaurant_id: string | null;
+  free_trial_started_at: string;
+  activated_at: string | null;
+  activation_bonus_paid: boolean;
+  paid_months: number;
+  total_commission_earned: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentCommissionRecord {
+  id: string;
+  conversion_id: string;
+  agent_id: string;
+  paid_month: string;
+  performance_fee: number;
+  commission_amount: number;
+  status: "pending" | "included" | "paid";
+  created_at: string;
+}
+
+export interface AgentPayout {
+  id: string;
+  agent_id: string;
+  month: string;
+  qualified_calls: number;
+  activity_fee: number;
+  conversion_bonuses: number;
+  commission: number;
+  total: number;
+  status: AgentPayoutStatus;
+  paid_at: string | null;
+  payment_method: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentMonthSummary {
+  leads_submitted: number;
+  leads_remaining: number;
+  qualified_calls: number;
+  calls_remaining: number;
+  activity_fee: number;
+  bonuses_this_month: number;
+  commission_this_month: number;
+  total_earnings_this_month: number;
+}
+
+export interface AgentEarningsSummary {
+  total_calls: number;
+  total_activity_fees: number;
+  total_bonuses: number;
+  total_commission: number;
+  grand_total: number;
+  paid_out: number;
+  pending_payout: number;
+  active_restaurants: number;
+}
+
+export interface AgentAdminRow {
+  agent_id: string;
+  full_name: string;
+  phone: string | null;
+  is_active: boolean;
+  month_leads: number;
+  month_calls: number;
+  total_conversions: number;
+  unpaid_total: number;
+  lifetime_earned: number;
+}
+
+export interface ClaimedRestaurantRow {
+  lead_id: string;
+  agent_id: string;
+  agent_name: string;
+  restaurant_name: string;
+  location: string | null;
+  phone: string | null;
+  claimed_at: string;
+  is_mine: boolean;
+}

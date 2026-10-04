@@ -35,7 +35,9 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/customers") ||
     path.startsWith("/campaigns") ||
     path.startsWith("/analytics") ||
-    path.startsWith("/settings");
+    path.startsWith("/settings") ||
+    path.startsWith("/agent") ||
+    path.startsWith("/sales-agents");
  
   // Not logged in + trying to visit a protected page → go to login
   if (!user && isProtectedRoute) {

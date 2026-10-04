@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X, UtensilsCrossed, CreditCard, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, Send, BarChart3, Settings, MessageSquare, Plus, HelpCircle, X, UtensilsCrossed, CreditCard, ShieldCheck, Briefcase } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 
 const navigation = [
@@ -67,7 +67,20 @@ export function Sidebar({ isSuperAdmin = false }: SidebarProps) {
       </nav>
 
       {isSuperAdmin && (
-        <div className="px-3 pb-1">
+        <div className="px-3 pb-1 space-y-1">
+          <Link
+            href="/sales-agents"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname.startsWith("/sales-agents")
+                ? "bg-purple-600 text-white shadow-sm"
+                : "text-purple-700 hover:bg-purple-50 border border-purple-200"
+            )}
+          >
+            <Briefcase className="w-5 h-5" />
+            Sales Agents
+          </Link>
           <Link
             href="/admin"
             onClick={() => setOpen(false)}

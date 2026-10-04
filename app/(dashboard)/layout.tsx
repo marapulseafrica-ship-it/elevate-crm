@@ -17,7 +17,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
  
   const restaurant = await getCurrentRestaurant();
- 
+
+  // If no restaurant, check if this user is a sales agent and redirect them
+  if (!restaurant) {
+    const { data: agentRow } = await supabase
+      .from("sales_agents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    if (agentRow) {
+      redirect("/agent");
+    }
+  }
+
   // Logged in but no restaurant exists - show a setup screen instead of redirecting
   // (Redirecting to /signup while logged in creates an infinite loop with the middleware)
   if (!restaurant) {
