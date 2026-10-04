@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
         .in("status", ["sent", "delivered", "read"]);
 
       if (sentLogs?.length) {
-        const sentCampaignIds = [...new Set(sentLogs.map((l: any) => l.campaign_id as string))];
+        const sentCampaignIds = Array.from(new Set(sentLogs.map((l: any) => l.campaign_id as string)));
 
         // 2. Narrow to campaigns for this restaurant that are still within window
         const { data: activeCampaigns } = await supabaseAdmin
