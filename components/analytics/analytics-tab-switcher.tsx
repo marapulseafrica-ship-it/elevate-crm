@@ -14,6 +14,7 @@ interface Props {
   revenue: RevenueBySegment;
   bestCampaign: any | null;
   analyticsChartsSlot: React.ReactNode;
+  trafficSourcesSlot: React.ReactNode;
   restaurantId: string;
   canAccessRevenue?: boolean;
   canAccessPromoRoi?: boolean;
@@ -34,12 +35,18 @@ function LockedTab({ feature }: { feature: string }) {
   );
 }
 
-export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, bestCampaign, analyticsChartsSlot, restaurantId, canAccessRevenue = true, canAccessPromoRoi = true }: Props) {
-  const [tab, setTab] = useState<"campaigns" | "revenue" | "promotions">("campaigns");
+export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, bestCampaign, analyticsChartsSlot, trafficSourcesSlot, restaurantId, canAccessRevenue = true, canAccessPromoRoi = true }: Props) {
+  const [tab, setTab] = useState<"traffic" | "campaigns" | "revenue" | "promotions">("traffic");
 
   return (
     <div className="space-y-6">
       <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={() => setTab("traffic")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "traffic" ? "bg-primary text-white" : "bg-white border text-slate-700 hover:bg-slate-50"}`}
+        >
+          Traffic Sources
+        </button>
         <button
           onClick={() => setTab("campaigns")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "campaigns" ? "bg-primary text-white" : "bg-white border text-slate-700 hover:bg-slate-50"}`}
@@ -62,6 +69,7 @@ export function AnalyticsTabSwitcher({ campaigns, segmentCounts, revenue, bestCa
         </button>
       </div>
 
+      {tab === "traffic" && trafficSourcesSlot}
       {tab === "campaigns" && analyticsChartsSlot}
       {tab === "revenue" && (canAccessRevenue ? <RevenueCharts revenue={revenue} /> : <LockedTab feature="Revenue & Spending" />)}
       {tab === "promotions" && (canAccessPromoRoi ? <PromoRoiTab restaurantId={restaurantId} /> : <LockedTab feature="Promo ROI" />)}

@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getDashboardSummary, getVisitsChartData, getRecentCustomers } from "@/lib/queries/dashboard";
+import { getTodayVisitBreakdown } from "@/lib/queries/analytics";
 import { createClient } from "@/lib/supabase/server";
 import {
-  Users, RotateCw, UserPlus, AlertCircle, Flame, Star, Send, Eye, ChevronRight, TrendingUp,
+  Users, RotateCw, UserPlus, AlertCircle, Flame, Star, Send, Eye, ChevronRight, TrendingUp, Megaphone,
 } from "lucide-react";
 import { formatRelativeTime, formatNumber } from "@/lib/utils";
 import Link from "next/link";
@@ -19,10 +20,11 @@ export default async function DashboardPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [summary, chartData, recentCustomers] = await Promise.all([
+  const [summary, chartData, recentCustomers, todayBreakdown] = await Promise.all([
     getDashboardSummary(restaurant.id),
     getVisitsChartData(restaurant.id, 30),
     getRecentCustomers(restaurant.id, 5),
+    getTodayVisitBreakdown(restaurant.id),
   ]);
 
   if (!summary) {
@@ -127,6 +129,70 @@ export default async function DashboardPage() {
             </div>
           </Card>
         </div>
+
+        {/* Today's Traffic — campaign vs organic */}
+        <Card className="p-6 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold">Today&apos;s Traffic</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {todayBreakdown.total} visit{todayBreakdown.total !== 1 ? "s" : ""} today
+                {todayBreakdown.total > 0 && (
+                  <span> — {todayBreakdown.campaign_driven} from campaigns, {todayBreakdown.organic} organic</span>
+                )}
+              </p>
+            </div>
+            <Link href="/analytics" className="text-xs text-primary font-medium hover:underline">Full breakdown →</Link>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mb-5">
+            <div className="p-3 rounded-lg bg-slate-50 text-center">
+              <div className="text-2xl font-bold text-slate-800">{todayBreakdown.total}</div>
+              <div className="text-xs text-slate-500 mt-0.5">Total Visits</div>
+            </div>
+            <div className="p-3 rounded-lg bg-emerald-50 text-center">
+              <div className="text-2xl font-bold text-emerald-700">{todayBreakdown.campaign_driven}</div>
+              <div className="text-xs text-emerald-600 mt-0.5">
+                From Campaign{todayBreakdown.total > 0 ? ` · ${Math.round((todayBreakdown.campaign_driven / todayBreakdown.total) * 100)}%` : ""}
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-50 text-center">
+              <div className="text-2xl font-bold text-blue-700">{todayBreakdown.organic}</div>
+              <div className="text-xs text-blue-600 mt-0.5">
+                Organic{todayBreakdown.total > 0 ? ` · ${Math.round((todayBreakdown.organic / todayBreakdown.total) * 100)}%` : ""}
+              </div>
+            </div>
+          </div>
+
+          {todayBreakdown.campaign_customers.length > 0 ? (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Megaphone className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-xs font-semibold text-slate-600">Campaign-driven visitors today</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {todayBreakdown.campaign_customers.slice(0, 8).map((c, i) => (
+                  <div key={i} className="flex items-center justify-between py-2">
+                    <div>
+                      <span className="text-sm font-medium text-slate-800">{c.name}</span>
+                      <span className="text-xs text-slate-400 ml-2">{c.phone}</span>
+                    </div>
+                    <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{c.campaign_name}</span>
+                  </div>
+                ))}
+                {todayBreakdown.campaign_customers.length > 8 && (
+                  <div className="pt-2 text-xs text-slate-400 text-center">
+                    +{todayBreakdown.campaign_customers.length - 8} more — <Link href="/analytics" className="text-primary hover:underline">see all</Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : todayBreakdown.total > 0 ? (
+            <p className="text-xs text-slate-400">No campaign-driven visitors yet today — all {todayBreakdown.total} visit{todayBreakdown.total !== 1 ? "s" : ""} were organic.</p>
+          ) : (
+            <p className="text-xs text-slate-400">No visits recorded yet today.</p>
+          )}
+        </Card>
 
         {/* Recent Customers + Insights + Last Campaign */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

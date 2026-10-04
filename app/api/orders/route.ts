@@ -51,6 +51,29 @@ export async function POST(req: NextRequest) {
     .eq("phone", phone.trim())
     .single();
 
+  // Find the most recent active campaign this customer was attributed to (within last 24 h).
+  // This links the order to the campaign that drove the visit.
+  let attributedCampaignId: string | null = null;
+  if (customer?.id) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    const { data: recentAttrs } = await supabaseAdmin
+      .from("campaign_attributions")
+      .select("campaign_id, attributed_at, campaigns!inner(ends_at, restaurant_id)")
+      .eq("customer_id", customer.id)
+      .eq("restaurant_id", restaurant.id)
+      .gte("attributed_at", since)
+      .order("attributed_at", { ascending: false })
+      .limit(10);
+
+    // Pick the attribution whose campaign is still active
+    const active = (recentAttrs ?? []).find((a: any) => {
+      const endsAt = a.campaigns?.ends_at;
+      return !endsAt || endsAt > now;
+    });
+    attributedCampaignId = active?.campaign_id ?? null;
+  }
+
   // Fetch menu item prices from DB — never trust client prices
   const itemIds: string[] = (items as OrderItemInput[]).map((i) => i.menu_item_id);
   const { data: menuItems } = await supabaseAdmin
@@ -100,6 +123,7 @@ export async function POST(req: NextRequest) {
       notes: notes?.trim() || null,
       status: "pending",
       promotion_id: promotion_id ?? null,
+      campaign_id: attributedCampaignId,
     })
     .select("id")
     .single();

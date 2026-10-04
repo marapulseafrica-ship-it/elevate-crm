@@ -68,3 +68,38 @@ export async function getOrderPatterns(restaurantId: string): Promise<OrderPatte
   if (error || !data) return [];
   return data as OrderPattern[];
 }
+
+export interface CampaignCustomerToday {
+  name: string;
+  phone: string;
+  campaign_name: string;
+  attributed_at: string;
+}
+
+export interface TodayVisitBreakdown {
+  total: number;
+  campaign_driven: number;
+  organic: number;
+  campaign_customers: CampaignCustomerToday[];
+}
+
+export async function getTodayVisitBreakdown(restaurantId: string): Promise<TodayVisitBreakdown> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_today_visit_breakdown", { p_restaurant_id: restaurantId });
+  if (error || !data) return { total: 0, campaign_driven: 0, organic: 0, campaign_customers: [] };
+  return data as TodayVisitBreakdown;
+}
+
+export interface VisitSourceDay {
+  day: string;
+  campaign_driven: number;
+  organic: number;
+  total: number;
+}
+
+export async function getVisitSourceTrend(restaurantId: string, days = 30): Promise<VisitSourceDay[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_visit_source_trend", { p_restaurant_id: restaurantId, p_days: days });
+  if (error || !data) return [];
+  return data as VisitSourceDay[];
+}

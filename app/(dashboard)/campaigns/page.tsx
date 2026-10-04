@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CampaignBuilder } from "@/components/campaigns/campaign-builder";
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
-import { getCampaigns, getMessageTemplates, getCampaignStats } from "@/lib/queries/campaigns";
+import { getCampaigns, getMessageTemplates, getCampaignStats, getCampaignAttributionStats } from "@/lib/queries/campaigns";
 import { getSegmentCounts } from "@/lib/queries/customers";
 import { createClient } from "@/lib/supabase/server";
 import { canAccess, isSuperAdmin, getPlanLimits, type PlanTier } from "@/lib/plans";
@@ -27,11 +27,12 @@ export default async function CampaignsPage() {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [campaigns, templates, segCounts, stats, monthCampaignsRes] = await Promise.all([
+  const [campaigns, templates, segCounts, stats, attributionStats, monthCampaignsRes] = await Promise.all([
     getCampaigns(restaurant.id, 20),
     getMessageTemplates(restaurant.id),
     getSegmentCounts(restaurant.id),
     getCampaignStats(restaurant.id),
+    getCampaignAttributionStats(restaurant.id),
     createClient()
       .from("campaigns")
       .select("id", { count: "exact", head: true })
@@ -142,13 +143,17 @@ export default async function CampaignsPage() {
             <h3 className="text-base font-semibold">Campaign History</h3>
           </div>
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px]">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-b text-xs text-slate-500 uppercase">
                 <th className="text-left font-medium px-6 py-3">Campaign Name</th>
                 <th className="text-left font-medium px-6 py-3">Audience</th>
-                <th className="text-left font-medium px-6 py-3">Sent</th>
+                <th className="text-left font-medium px-6 py-3">Targeted</th>
+                <th className="text-left font-medium px-6 py-3">Sent ✓</th>
                 <th className="text-left font-medium px-6 py-3">Delivered</th>
+                <th className="text-left font-medium px-6 py-3">Failed</th>
+                <th className="text-left font-medium px-6 py-3">Returned</th>
+                <th className="text-left font-medium px-6 py-3">Revenue</th>
                 <th className="text-left font-medium px-6 py-3">Status</th>
                 <th className="text-left font-medium px-6 py-3">Scheduled</th>
                 <th className="text-left font-medium px-6 py-3">Ends</th>
@@ -162,12 +167,32 @@ export default async function CampaignsPage() {
                 const expiringSoon = endsAtDate && !expired
                   ? differenceInDays(endsAtDate, new Date()) <= 7
                   : false;
+                const failedCount = c.failed_count ?? 0;
+                const attr = attributionStats[c.id];
                 return (
                   <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50">
-                    <td className="px-6 py-4 text-sm font-medium">{c.name}</td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <a href={`/campaigns/${c.id}`} className="hover:text-primary hover:underline underline-offset-2">{c.name}</a>
+                    </td>
                     <td className="px-6 py-4 text-sm text-slate-600 capitalize">{c.audience_segment.replace(/_/g, " ")}</td>
-                    <td className="px-6 py-4 text-sm">{c.sent_count}</td>
-                    <td className="px-6 py-4 text-sm">{c.delivered_count}</td>
+                    <td className="px-6 py-4 text-sm text-slate-700 font-medium">{c.audience_count ?? "—"}</td>
+                    <td className="px-6 py-4 text-sm text-green-600 font-medium">{c.sent_count}</td>
+                    <td className="px-6 py-4 text-sm text-blue-600">{c.delivered_count}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {failedCount > 0
+                        ? <span className="text-red-500 font-medium">{failedCount}</span>
+                        : <span className="text-slate-400">0</span>}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {attr?.attributed_visits
+                        ? <span className="font-semibold text-emerald-600">{attr.attributed_visits}</span>
+                        : <span className="text-slate-400">0</span>}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {attr?.attributed_revenue
+                        ? <span className="font-semibold text-emerald-700">ZMW {Number(attr.attributed_revenue).toFixed(2)}</span>
+                        : <span className="text-slate-400">—</span>}
+                    </td>
                     <td className="px-6 py-4">
                       <Badge variant={statusVariant(c.status) as any} className="capitalize">{c.status}</Badge>
                     </td>
@@ -183,7 +208,7 @@ export default async function CampaignsPage() {
                         </span>
                       ) : "—"}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 flex items-center gap-2">
                       {(expired || expiringSoon) && (
                         <ExtendButton campaignId={c.id} endsAt={c.ends_at} />
                       )}
@@ -193,11 +218,10 @@ export default async function CampaignsPage() {
               })}
               {campaigns.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={11} className="px-6 py-12 text-center text-sm text-slate-500">
                     No campaigns yet. Create your first one above.
                   </td>
                 </tr>
-
               )}
             </tbody>
           </table>

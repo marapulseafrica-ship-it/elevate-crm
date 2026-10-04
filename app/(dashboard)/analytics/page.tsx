@@ -7,7 +7,8 @@ import { AnalyticsTabSwitcher } from "@/components/analytics/analytics-tab-switc
 import { getCurrentRestaurant } from "@/lib/queries/restaurant";
 import { getCampaignPerformance, getCampaignStats } from "@/lib/queries/campaigns";
 import { getSegmentCounts } from "@/lib/queries/customers";
-import { getRevenueBySegment } from "@/lib/queries/analytics";
+import { getRevenueBySegment, getTodayVisitBreakdown, getVisitSourceTrend } from "@/lib/queries/analytics";
+import { TrafficSourceChart } from "@/components/analytics/traffic-source-chart";
 import { createClient } from "@/lib/supabase/server";
 import { canAccess, isSuperAdmin, type PlanTier } from "@/lib/plans";
 import { Send, Activity, TrendingUp, Users } from "lucide-react";
@@ -24,11 +25,13 @@ export default async function AnalyticsPage() {
   const canAccessRevenue = superAdmin || canAccess(tier, "revenue_analytics");
   const canAccessPromoRoi = superAdmin || canAccess(tier, "promo_roi");
 
-  const [campaigns, stats, segCounts, revenue] = await Promise.all([
+  const [campaigns, stats, segCounts, revenue, todayBreakdown, sourceTrend] = await Promise.all([
     getCampaignPerformance(restaurant.id, 20),
     getCampaignStats(restaurant.id),
     getSegmentCounts(restaurant.id),
     getRevenueBySegment(restaurant.id),
+    getTodayVisitBreakdown(restaurant.id),
+    getVisitSourceTrend(restaurant.id, 30),
   ]);
 
   const bestCampaign = campaigns.length > 0
@@ -85,6 +88,15 @@ export default async function AnalyticsPage() {
           restaurantId={restaurant.id}
           canAccessRevenue={canAccessRevenue}
           canAccessPromoRoi={canAccessPromoRoi}
+          trafficSourcesSlot={
+            <TrafficSourceChart
+              trend={sourceTrend}
+              todayCustomers={todayBreakdown.campaign_customers}
+              todayTotal={todayBreakdown.total}
+              todayCampaign={todayBreakdown.campaign_driven}
+              todayOrganic={todayBreakdown.organic}
+            />
+          }
           analyticsChartsSlot={
             <div className="space-y-6">
               <AnalyticsCharts

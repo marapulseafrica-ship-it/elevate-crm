@@ -37,11 +37,12 @@ function localDatetimeToISO(local: string): string {
   return new Date(local).toISOString();
 }
 
-function defaultEndsAt(sendAt: string): string {
-  const base = sendAt ? new Date(sendAt) : new Date();
-  base.setDate(base.getDate() + 30);
-  return base.toISOString().slice(0, 16);
-}
+const DURATION_PRESETS = [
+  { label: "1 week",    days: 7 },
+  { label: "2 weeks",   days: 14 },
+  { label: "30 days",   days: 30 },
+  { label: "3 months",  days: 90 },
+];
 
 function minDatetime(): string {
   return new Date(Date.now() + 60_000).toISOString().slice(0, 16);
@@ -55,10 +56,14 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
   const [campaignName, setCampaignName]         = useState("");
   const [messageBody, setMessageBody]           = useState("");
 
-  // scheduling
+  // duration (required)
+  const [durationDays, setDurationDays]         = useState<number>(30);
+  const [customEndsAt, setCustomEndsAt]         = useState("");
+  const [useCustomDuration, setUseCustomDuration] = useState(false);
+
+  // scheduling (optional)
   const [showSchedule, setShowSchedule]         = useState(false);
   const [scheduledAt, setScheduledAt]           = useState("");
-  const [endsAt, setEndsAt]                     = useState("");
 
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -93,8 +98,10 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
     setMessageBody("");
     setSelectedTemplateId("");
     setScheduledAt("");
-    setEndsAt("");
     setShowSchedule(false);
+    setDurationDays(30);
+    setCustomEndsAt("");
+    setUseCustomDuration(false);
   };
 
   const handleSend = async (scheduleMode: "now" | "later") => {
@@ -113,9 +120,14 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
       ? new Date().toISOString()
       : localDatetimeToISO(scheduledAt);
 
-    const campaignEndsAt = endsAt
-      ? localDatetimeToISO(endsAt)
-      : (() => { const d = new Date(sendTime); d.setDate(d.getDate() + 30); return d.toISOString(); })();
+    let campaignEndsAt: string;
+    if (useCustomDuration && customEndsAt) {
+      campaignEndsAt = localDatetimeToISO(customEndsAt);
+    } else {
+      const d = new Date(sendTime);
+      d.setDate(d.getDate() + durationDays);
+      campaignEndsAt = d.toISOString();
+    }
 
     const supabase = createClient();
     const { data: inserted, error } = await supabase.from("campaigns").insert({
@@ -281,18 +293,75 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
           )}
         </div>
 
-        {/* Step 4 — Schedule (optional) */}
-        <div>
+        {/* Step 4 — Campaign Duration (required) */}
+        <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <span className="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center font-medium">4</span>
-            <span className="font-medium">Scheduling</span>
+            <span className="font-medium">Campaign Duration</span>
+            <span className="text-xs text-slate-400">How long should this campaign track returning customers?</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-3">
+            {DURATION_PRESETS.map((p) => (
+              <button
+                key={p.days}
+                type="button"
+                onClick={() => { setDurationDays(p.days); setUseCustomDuration(false); }}
+                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                  !useCustomDuration && durationDays === p.days
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setUseCustomDuration(true)}
+              className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                useCustomDuration
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-slate-200 text-slate-600 hover:border-slate-300"
+              }`}
+            >
+              Custom date
+            </button>
+          </div>
+
+          {useCustomDuration && (
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <Input
+                type="datetime-local"
+                min={minDatetime()}
+                value={customEndsAt}
+                onChange={(e) => setCustomEndsAt(e.target.value)}
+                className="text-sm max-w-xs"
+                placeholder="End date"
+              />
+            </div>
+          )}
+
+          {!useCustomDuration && (
+            <p className="text-xs text-slate-400 mt-1">
+              Campaign runs for <span className="font-medium text-slate-600">{durationDays} days</span> from send time — returns within this window are counted as campaign-driven.
+            </p>
+          )}
+        </div>
+
+        {/* Step 5 — Schedule send time (optional) */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center font-medium">5</span>
+            <span className="font-medium">When to Send</span>
             <span className="text-xs text-slate-400">(optional — leave blank to send immediately)</span>
           </div>
 
           <button
             type="button"
-            onClick={() => { setShowSchedule((s) => !s); if (!showSchedule) setScheduledAt(""); }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all mb-3 ${
+            onClick={() => { setShowSchedule((s) => !s); if (showSchedule) setScheduledAt(""); }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
               showSchedule ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-600 hover:border-slate-300"
             }`}
           >
@@ -301,37 +370,18 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
           </button>
 
           {showSchedule && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg border">
-              <div className="space-y-1.5">
-                <Label htmlFor="scheduled_at" className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                  <Clock className="w-3.5 h-3.5" /> Send date &amp; time
-                </Label>
-                <Input
-                  id="scheduled_at"
-                  type="datetime-local"
-                  min={minDatetime()}
-                  value={scheduledAt}
-                  onChange={(e) => {
-                    setScheduledAt(e.target.value);
-                    if (!endsAt) setEndsAt(defaultEndsAt(e.target.value));
-                  }}
-                  className="text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ends_at" className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                  <Calendar className="w-3.5 h-3.5" /> Campaign end date
-                  <span className="font-normal text-slate-400">(defaults to +30 days)</span>
-                </Label>
-                <Input
-                  id="ends_at"
-                  type="datetime-local"
-                  min={scheduledAt || minDatetime()}
-                  value={endsAt}
-                  onChange={(e) => setEndsAt(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
+            <div className="mt-3 p-4 bg-slate-50 rounded-lg border max-w-xs">
+              <Label htmlFor="scheduled_at" className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 mb-1.5">
+                <Clock className="w-3.5 h-3.5" /> Send date &amp; time
+              </Label>
+              <Input
+                id="scheduled_at"
+                type="datetime-local"
+                min={minDatetime()}
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="text-sm"
+              />
             </div>
           )}
         </div>
@@ -367,14 +417,14 @@ export function CampaignBuilder({ restaurantId, restaurantName, templates, segme
             <Button
               variant="outline"
               className="w-full"
-              disabled={saving || !showSchedule || !scheduledAt || audienceCount === 0 || !campaignName.trim() || !messageBody.trim() || campaignLimitReached}
+              disabled={saving || !scheduledAt || audienceCount === 0 || !campaignName.trim() || !messageBody.trim() || campaignLimitReached}
               onClick={() => handleSend("later")}
             >
               <Clock className="w-4 h-4 mr-2" />
               Schedule Campaign
             </Button>
-            {!showSchedule && (
-              <p className="text-xs text-center text-slate-400 mt-1">Enable scheduling above first</p>
+            {!scheduledAt && (
+              <p className="text-xs text-center text-slate-400 mt-1">Set a send time in Step 5 first</p>
             )}
           </div>
         </Card>

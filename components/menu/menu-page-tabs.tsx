@@ -60,7 +60,7 @@ export function MenuPageTabs({ restaurantId, initialCategories, initialItems, in
       )}
       {tab === "orders" && <OrdersTab restaurantId={restaurantId} onPendingCountChange={setPendingCount} />}
       {tab === "promotions" && (
-        <PromotionsTab restaurantId={restaurantId} initialPromotions={initialPromotions} />
+        <PromotionsTab restaurantId={restaurantId} initialPromotions={initialPromotions} initialMenuItems={initialItems} />
       )}
       {tab === "feedback" && <FeedbackTab restaurantId={restaurantId} />}
       {tab === "ai" && (

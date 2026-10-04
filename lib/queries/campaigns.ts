@@ -66,6 +66,38 @@ export async function getSegmentCount(
   return data as number;
 }
 
+export async function getCampaignAttributionStats(
+  restaurantId: string
+): Promise<Record<string, { attributed_visits: number; attributed_revenue: number }>> {
+  const supabase = createClient();
+  const { data } = await supabase.rpc("get_campaign_attribution_stats", {
+    p_restaurant_id: restaurantId,
+  });
+  const map: Record<string, { attributed_visits: number; attributed_revenue: number }> = {};
+  for (const row of data ?? []) {
+    map[row.campaign_id] = {
+      attributed_visits: Number(row.attributed_visits) || 0,
+      attributed_revenue: Number(row.attributed_revenue) || 0,
+    };
+  }
+  return map;
+}
+
+export async function getCampaignAttributedCustomers(campaignId: string) {
+  const supabase = createClient();
+  const { data } = await supabase.rpc("get_campaign_attributed_customers", {
+    p_campaign_id: campaignId,
+  });
+  return (data ?? []) as Array<{
+    customer_id: string;
+    customer_name: string;
+    phone: string;
+    attributed_at: string;
+    visit_count: number;
+    total_spent: number;
+  }>;
+}
+
 export async function getCampaignStats(restaurantId: string) {
   const supabase = createClient();
 
@@ -81,7 +113,7 @@ export async function getCampaignStats(restaurantId: string) {
       .eq("status", "completed"),
     supabase
       .from("campaigns")
-      .select("sent_count, delivered_count, audience_count")
+      .select("sent_count, delivered_count, failed_count, audience_count")
       .eq("restaurant_id", restaurantId)
       .eq("status", "completed"),
   ]);
@@ -90,12 +122,18 @@ export async function getCampaignStats(restaurantId: string) {
     sumsRes.data?.reduce((acc: number, r: any) => acc + (r.sent_count || 0), 0) || 0;
   const totalDelivered =
     sumsRes.data?.reduce((acc: number, r: any) => acc + (r.delivered_count || 0), 0) || 0;
+  const totalFailed =
+    sumsRes.data?.reduce((acc: number, r: any) => acc + (r.failed_count || 0), 0) || 0;
+  const totalTargeted =
+    sumsRes.data?.reduce((acc: number, r: any) => acc + (r.audience_count || 0), 0) || 0;
 
   return {
     total_campaigns: totalRes.count || 0,
     completed_campaigns: completedRes.count || 0,
     total_messages_sent: totalSent,
     total_delivered: totalDelivered,
+    total_failed: totalFailed,
+    total_targeted: totalTargeted,
     delivery_rate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
     active_campaigns: 0,
   };

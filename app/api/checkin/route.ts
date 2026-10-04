@@ -134,13 +134,64 @@ export async function POST(req: NextRequest) {
   const customerId = customers[0].id;
   const isNew = customers[0].total_visits === 0;
 
-  // Insert visit
-  await supabaseAdmin.from("visits").insert({
+  // Insert visit — capture ID for attribution
+  const { data: visitRow } = await supabaseAdmin.from("visits").insert({
     customer_id: customerId,
     restaurant_id: restaurant.id,
     source: "qr_checkin",
     visit_date: new Date().toISOString(),
-  });
+  }).select("id").single();
+  const visitId = visitRow?.id ?? null;
+
+  // Campaign attribution: check if this customer was sent an active campaign
+  if (visitId) {
+    try {
+      const now = new Date().toISOString();
+
+      // 1. Find campaign_log entries for this phone (sent/delivered/read)
+      const { data: sentLogs } = await supabaseAdmin
+        .from("campaign_logs")
+        .select("campaign_id")
+        .eq("phone_sent_to", normalisedPhone)
+        .in("status", ["sent", "delivered", "read"]);
+
+      if (sentLogs?.length) {
+        const sentCampaignIds = [...new Set(sentLogs.map((l: any) => l.campaign_id as string))];
+
+        // 2. Narrow to campaigns for this restaurant that are still within window
+        const { data: activeCampaigns } = await supabaseAdmin
+          .from("campaigns")
+          .select("id")
+          .eq("restaurant_id", restaurant.id)
+          .in("id", sentCampaignIds)
+          .or(`ends_at.is.null,ends_at.gte.${now}`);
+
+        if (activeCampaigns?.length) {
+          const activeCampaignIds = activeCampaigns.map((c: any) => c.id as string);
+
+          // 3. Insert one attribution row per active campaign per visit.
+          //    UNIQUE(campaign_id, customer_id, visit_id) prevents duplicates
+          //    if the API fires twice for the same scan.
+          const newAttributions = activeCampaignIds.map((id) => ({
+            campaign_id: id,
+            customer_id: customerId,
+            visit_id: visitId,
+            restaurant_id: restaurant.id,
+            attributed_at: now,
+          }));
+
+          await supabaseAdmin
+            .from("campaign_attributions")
+            .upsert(newAttributions, {
+              onConflict: "campaign_id,customer_id,visit_id",
+              ignoreDuplicates: true,
+            });
+        }
+      }
+    } catch {
+      // Attribution failure must never block the check-in response
+    }
+  }
 
   // Fetch updated counts after trigger
   const [{ data: updatedCustomer }, { data: totalCustomersData }] = await Promise.all([
