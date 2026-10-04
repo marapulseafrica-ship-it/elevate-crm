@@ -29,7 +29,10 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
  
-  const isAuthRoute = path === "/login" || path === "/signup" || path === "/agent-signup";
+  // agent-signup is always accessible — never redirect away, even if logged in
+  if (path === "/agent-signup") return response;
+
+  const isAuthRoute = path === "/login" || path === "/signup";
   const isProtectedRoute =
     path.startsWith("/dashboard") ||
     path.startsWith("/customers") ||
